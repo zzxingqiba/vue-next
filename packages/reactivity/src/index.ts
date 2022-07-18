@@ -1,1 +1,2 @@
-console.log('hh22')
+export {effect} from './effect'
+export {reactive} from './reactive'
