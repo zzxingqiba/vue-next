@@ -2,6 +2,7 @@ import { makeMap } from "./makeMap";
 
 export { makeMap };
 
+export const isString = (val: unknown): val is string => typeof val === 'string'
 const hasOwnProperty = Object.prototype.hasOwnProperty;
 export const hasOwn = (
   val: object,
@@ -32,3 +33,13 @@ export const isSymbol = (val: unknown): val is symbol =>
   typeof val === "symbol";
 
 export const extend = Object.assign;
+
+export const isIntegerKey = (key: unknown) =>
+  isString(key) &&
+  key !== 'NaN' &&
+  key[0] !== '-' &&
+  '' + parseInt(key, 10) === key
+  
+// compare whether a value has changed, accounting for NaN.
+export const hasChanged = (value: any, oldValue: any): boolean =>
+  !Object.is(value, oldValue)

@@ -1,5 +1,5 @@
 import { TrackOpTypes, TriggerOpTypes } from "./operations";
-import { createDep, Dep, newTracked, wasTracked } from "./dep";
+import { createDep, Dep, newTracked, wasTracked, initDepMarkers, finalizeDepMarkers } from "./dep";
 import { EffectScope } from "./effectScope";
 import { extend } from "@vue/shared";
 
@@ -40,6 +40,20 @@ export class ReactiveEffect<T = any> {
   deps: Dep[] = [];
   parent: ReactiveEffect | undefined = undefined;
 
+  /**
+   * Can be attached after creation
+   * @internal
+   */
+  //  computed?: ComputedRefImpl<T>
+   /**
+    * @internal
+    */
+   allowRecurse?: boolean
+   /**
+    * @internal
+    */
+   private deferStop?: boolean
+
   onStop?: () => void;
   // dev only
   onTrack?: (event: DebuggerEvent) => void;
@@ -51,10 +65,78 @@ export class ReactiveEffect<T = any> {
     public scheduler: EffectScheduler | null = null,
     scope?: EffectScope
   ) {
+    // ##未知
     // recordEffectScope(this, scope)
   }
 
-  run() {}
+  run() {
+    if (!this.active) {
+      return this.fn()
+    }
+    let parent: ReactiveEffect | undefined = activeEffect
+    let lastShouldTrack = shouldTrack
+    while (parent) {
+      if (parent === this) {
+        return
+      }
+      parent = parent.parent
+    }
+    try {
+      this.parent = activeEffect
+      activeEffect = this
+      shouldTrack = true
+
+      trackOpBit = 1 << ++effectTrackDepth
+
+      if (effectTrackDepth <= maxMarkerBits) {
+        // 没执行过内部逻辑 暂未知
+        initDepMarkers(this)
+      } else {
+        cleanupEffect(this)
+      }
+      // 执行传入fn 为回调中的代理属性收集依赖 会走入对应的get或set中
+      // 回到baseHandlers文件中get  会调用track函数
+      return this.fn()
+    } finally {
+      if (effectTrackDepth <= maxMarkerBits) {
+        // 小于30层 还会再最终处理下重复的依赖 暂未知出现场景
+        finalizeDepMarkers(this)
+      }
+
+      trackOpBit = 1 << --effectTrackDepth
+
+      activeEffect = this.parent
+      shouldTrack = lastShouldTrack
+      this.parent = undefined
+
+      if (this.deferStop) {
+        this.stop()
+      }
+    }
+  }
+
+  stop() {
+    // stopped while running itself - defer the cleanup
+    // if (activeEffect === this) {
+    //   this.deferStop = true
+    // } else if (this.active) {
+    //   cleanupEffect(this)
+    //   if (this.onStop) {
+    //     this.onStop()
+    //   }
+    //   this.active = false
+    // }
+  }
+}
+
+function cleanupEffect(effect: ReactiveEffect) {
+  const { deps } = effect
+  if (deps.length) {
+    for (let i = 0; i < deps.length; i++) {
+      deps[i].delete(effect)
+    }
+    deps.length = 0
+  }
 }
 
 export interface DebuggerOptions {
@@ -79,10 +161,10 @@ export function effect<T = any>(
   fn: () => T,
   options?: ReactiveEffectOptions
 ): ReactiveEffectRunner {
+  // 如果已经是effect,先重置为原始对象
   if ((fn as ReactiveEffectRunner).effect) {
     fn = (fn as ReactiveEffectRunner).effect.fn;
   }
-
   const _effect = new ReactiveEffect(fn);
   if (options) {
     extend(_effect, options);
@@ -101,10 +183,16 @@ const trackStack: boolean[] = [];
 
 export function track(target: object, type: TrackOpTypes, key: unknown) {
   if (shouldTrack && activeEffect) {
+    // 收集开始
+    // target 为 { name:'zz' }
     let depsMap = targetMap.get(target);
     if (!depsMap) {
+      // 不存在则初始化
+      // key为{ name:'zz' } value为空Map对象
       targetMap.set(target, (depsMap = new Map()));
     }
+    // Map中查找 未找到则初始化
+    // key为name  value为Set对象
     let dep = depsMap.get(key);
     if (!dep) {
       depsMap.set(key, (dep = createDep()));
@@ -121,12 +209,25 @@ export function trackEffects(dep: Dep) {
       shouldTrack = !wasTracked(dep);
     }
   } else {
+    // 超过maxMarkerBits 30层 降级处理 清空当前dep所有依赖  下次触发再重新收集
     // Full cleanup mode.
     shouldTrack = !dep.has(activeEffect!);
   }
 
   if (shouldTrack) {
+    // 双向收集依赖
     dep.add(activeEffect!);
     activeEffect!.deps.push(dep);
   }
+}
+
+export function trigger(
+  target: object,
+  type: TriggerOpTypes,
+  key?: unknown,
+  newValue?: unknown,
+  oldValue?: unknown,
+  oldTarget?: Map<unknown, unknown> | Set<unknown>
+){
+  
 }

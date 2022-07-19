@@ -7,10 +7,13 @@ import {
   reactiveMap,
   shallowReactiveMap,
   shallowReadonlyMap,
+  isReadonly,
+  isShallow
 } from "./reactive";
-import { track } from "./effect";
+import { track, trigger } from "./effect";
 import { TrackOpTypes, TriggerOpTypes } from "./operations";
-import { isArray, hasOwn, isSymbol, makeMap } from "@vue/shared";
+import { isArray, hasOwn, isSymbol, makeMap, isIntegerKey, hasChanged } from "@vue/shared";
+import { isRef } from './ref'
 
 const isNonTrackableKeys = /*#__PURE__*/ makeMap(`__proto__,__v_isRef,__isVue`);
 const builtInSymbols = new Set(
@@ -33,7 +36,7 @@ function createArrayInstrumentations() {
   // values
   (["includes", "indexOf", "lastIndexOf"] as const).forEach((key) => {
     instrumentations[key] = function (this: unknown[], ...args: unknown[]) {
-      const arr = toRaw(this) as any;
+      // const arr = toRaw(this) as any;
       // for (let i = 0, l = this.length; i < l; i++) {
       //   track(arr, TrackOpTypes.GET, i + '')
       // }
@@ -98,16 +101,62 @@ function createGetter(isReadonly = false, shallow = false) {
       return res;
     }
     if (!isReadonly) {
-      debugger;
+      // 初始reactive时并不会执行, effect触发时,其中内部使用了reactive处理的值 会使当前全局变量activeEffect(当前effect)有值 继而进入track函数内部执行逻辑代码
+      // 给属性收集当前effect
       track(target, TrackOpTypes.GET, key);
     }
 
     return res;
   };
 }
+
+const set = /*#__PURE__*/ createSetter()
+function createSetter(shallow = false) {
+  return function set(
+    target: object,
+    key: string | symbol,
+    value: unknown,
+    receiver: object
+  ): boolean {
+    debugger
+    let oldValue = (target as any)[key]
+    if (isReadonly(oldValue) && isRef(oldValue) && !isRef(value)) {
+      return false
+    }
+    if (!shallow && !isReadonly(value)) {
+      if (!isShallow(value)) {
+        value = toRaw(value)
+        oldValue = toRaw(oldValue)
+      }
+      if (!isArray(target) && isRef(oldValue) && !isRef(value)) {
+        oldValue.value = value
+        return true
+      }
+    } else {
+      // in shallow mode, objects are set as-is regardless of reactive or not
+    }
+
+    const hadKey =
+      isArray(target) && isIntegerKey(key)
+        ? Number(key) < target.length
+        : hasOwn(target, key)
+    const result = Reflect.set(target, key, value, receiver)
+    // don't trigger if target is something up in the prototype chain of original
+    if (target === toRaw(receiver)) {
+      if (!hadKey) {
+        trigger(target, TriggerOpTypes.ADD, key, value)
+      } else if (hasChanged(value, oldValue)) {
+        trigger(target, TriggerOpTypes.SET, key, value, oldValue)
+      }
+    }
+    return result
+  }
+}
+
+
 export const mutableHandlers: ProxyHandler<object> = {
   get,
-  // set,
+  set,
   // deleteProperty,
   // has,
   // ownKeys
