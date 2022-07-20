@@ -9,7 +9,7 @@ import {
 } from "./dep";
 import { EffectScope } from "./effectScope";
 import { extend, isArray, isMap, isIntegerKey } from "@vue/shared";
-import { ComputedRefImpl } from './computed'
+import { ComputedRefImpl } from "./computed";
 
 type KeyToDepMap = Map<any, Dep>;
 const targetMap = new WeakMap<any, KeyToDepMap>();
@@ -52,7 +52,7 @@ export class ReactiveEffect<T = any> {
    * Can be attached after creation
    * @internal
    */
-   computed?: ComputedRefImpl<T>
+  computed?: ComputedRefImpl<T>;
   /**
    * @internal
    */
@@ -107,15 +107,15 @@ export class ReactiveEffect<T = any> {
         //   document.getElementById('app').innerHTML = name
         // })
         // flagMap.flag = false
-        // 当状态改变 再次触发effect 因为三元表达式的存在, 
+        // 当状态改变 再次触发effect 因为三元表达式的存在,
         // 一开始b是没有收集依赖的 收集的是a  再次进入时改变了flag的状态 那么就与a无关了 此时因为遍历当前effect的dep 里面有a 所以给a的dep.w计数
         // 但是a缺触发不到 不会触发track给dep.n计数  那么他最终的状态为dep.w有值 dep.n无值 那么effect结束时 下面finally时调用finalizeDepMarkers检查
-        // 就会清除掉a 因为a无论怎么变都不会再触发当前的effect了 只跟b有关系了 
+        // 就会清除掉a 因为a无论怎么变都不会再触发当前的effect了 只跟b有关系了
         // 新老方式对比 最新的这样只是双方互相清除了需要删除的属性/effect依赖  旧的是都清空 直接全清空  优化了效率
         // finalizeDepMarkers中的判断要求 如果dep.w存在 dep.n不存在 则删除 否则没事
         // 这里想下b的计数情况 应为dep.n = 2 dep.w = 0 满足finalizeDepMarkers中的判断要求 不会被删除
         // 再想想flag的技术情况 应为dep.n = 2 dep.w = 2 满足finalizeDepMarkers中的判断要求 不会被删除
-        initDepMarkers(this); 
+        initDepMarkers(this);
       } else {
         // 旧的兼容写法  在之后采用上面的方法 更快 超过30才会用这个  相当于每次触发effect都清空依赖 重新收集
         cleanupEffect(this);
@@ -282,9 +282,9 @@ export function trigger(
     switch (type) {
       case TriggerOpTypes.ADD:
         if (!isArray(target)) {
-          deps.push(depsMap.get(''));
+          deps.push(depsMap.get(""));
           if (isMap(target)) {
-            deps.push(depsMap.get(''));
+            deps.push(depsMap.get(""));
           }
         } else if (isIntegerKey(key)) {
           // new index added to array -> length changes
@@ -293,15 +293,15 @@ export function trigger(
         break;
       case TriggerOpTypes.DELETE:
         if (!isArray(target)) {
-          deps.push(depsMap.get(''));
+          deps.push(depsMap.get(""));
           if (isMap(target)) {
-            deps.push(depsMap.get(''));
+            deps.push(depsMap.get(""));
           }
         }
         break;
       case TriggerOpTypes.SET:
         if (isMap(target)) {
-          deps.push(depsMap.get(''));
+          deps.push(depsMap.get(""));
         }
         break;
     }
@@ -310,16 +310,16 @@ export function trigger(
   if (deps.length === 1) {
     // 对象走这 因为出发set 对象一次只能改一个值dep为 [Set(ReactiveEffect)]
     if (deps[0]) {
-      triggerEffects(deps[0])
+      triggerEffects(deps[0]);
     }
   } else {
-    const effects: ReactiveEffect[] = []
+    const effects: ReactiveEffect[] = [];
     for (const dep of deps) {
       if (dep) {
-        effects.push(...dep)
+        effects.push(...dep);
       }
     }
-    triggerEffects(createDep(effects))
+    triggerEffects(createDep(effects));
   }
 }
 
@@ -328,23 +328,21 @@ export function triggerEffects(
   debuggerEventExtraInfo?: DebuggerEventExtraInfo
 ) {
   // spread into array for stabilization
-  const effects = isArray(dep) ? dep : [...dep]
+  const effects = isArray(dep) ? dep : [...dep];
   for (const effect of effects) {
     if (effect.computed) {
-      triggerEffect(effect)
+      triggerEffect(effect);
     }
   }
   for (const effect of effects) {
     if (!effect.computed) {
-      triggerEffect(effect)
+      triggerEffect(effect);
     }
   }
 }
 
-function triggerEffect(
-  effect: ReactiveEffect,
-) {
-  // 防止这种情况 
+function triggerEffect(effect: ReactiveEffect) {
+  // 防止这种情况
   // effect(()=>{
   //   flagMap.flag++
   // })
@@ -354,11 +352,10 @@ function triggerEffect(
   if (effect !== activeEffect || effect.allowRecurse) {
     // 如果有调度器
     if (effect.scheduler) {
-      effect.scheduler()
+      effect.scheduler();
     } else {
       // 执行fn 也就是effect传入的函数
-      effect.run()
+      effect.run();
     }
   }
 }
-

@@ -8,12 +8,19 @@ import {
   shallowReactiveMap,
   shallowReadonlyMap,
   isReadonly,
-  isShallow
+  isShallow,
 } from "./reactive";
 import { track, trigger } from "./effect";
 import { TrackOpTypes, TriggerOpTypes } from "./operations";
-import { isArray, hasOwn, isSymbol, makeMap, isIntegerKey, hasChanged } from "@vue/shared";
-import { isRef } from './ref'
+import {
+  isArray,
+  hasOwn,
+  isSymbol,
+  makeMap,
+  isIntegerKey,
+  hasChanged,
+} from "@vue/shared";
+import { isRef } from "./ref";
 
 const isNonTrackableKeys = /*#__PURE__*/ makeMap(`__proto__,__v_isRef,__isVue`);
 const builtInSymbols = new Set(
@@ -110,7 +117,7 @@ function createGetter(isReadonly = false, shallow = false) {
   };
 }
 
-const set = /*#__PURE__*/ createSetter()
+const set = /*#__PURE__*/ createSetter();
 function createSetter(shallow = false) {
   return function set(
     target: object,
@@ -118,18 +125,18 @@ function createSetter(shallow = false) {
     value: unknown,
     receiver: object
   ): boolean {
-    let oldValue = (target as any)[key]
+    let oldValue = (target as any)[key];
     if (isReadonly(oldValue) && isRef(oldValue) && !isRef(value)) {
-      return false
+      return false;
     }
     if (!shallow && !isReadonly(value)) {
       if (!isShallow(value)) {
-        value = toRaw(value)
-        oldValue = toRaw(oldValue)
+        value = toRaw(value);
+        oldValue = toRaw(oldValue);
       }
       if (!isArray(target) && isRef(oldValue) && !isRef(value)) {
-        oldValue.value = value
-        return true
+        oldValue.value = value;
+        return true;
       }
     } else {
       // in shallow mode, objects are set as-is regardless of reactive or not
@@ -138,20 +145,19 @@ function createSetter(shallow = false) {
     const hadKey =
       isArray(target) && isIntegerKey(key)
         ? Number(key) < target.length
-        : hasOwn(target, key)
-    const result = Reflect.set(target, key, value, receiver)
+        : hasOwn(target, key);
+    const result = Reflect.set(target, key, value, receiver);
     // don't trigger if target is something up in the prototype chain of original
     if (target === toRaw(receiver)) {
       if (!hadKey) {
-        trigger(target, TriggerOpTypes.ADD, key, value)
+        trigger(target, TriggerOpTypes.ADD, key, value);
       } else if (hasChanged(value, oldValue)) {
-        trigger(target, TriggerOpTypes.SET, key, value, oldValue)
+        trigger(target, TriggerOpTypes.SET, key, value, oldValue);
       }
     }
-    return result
-  }
+    return result;
+  };
 }
-
 
 export const mutableHandlers: ProxyHandler<object> = {
   get,
