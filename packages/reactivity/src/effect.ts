@@ -1,7 +1,15 @@
 import { TrackOpTypes, TriggerOpTypes } from "./operations";
-import { createDep, Dep, newTracked, wasTracked, initDepMarkers, finalizeDepMarkers } from "./dep";
+import {
+  createDep,
+  Dep,
+  newTracked,
+  wasTracked,
+  initDepMarkers,
+  finalizeDepMarkers,
+} from "./dep";
 import { EffectScope } from "./effectScope";
-import { extend } from "@vue/shared";
+import { extend, isArray, isMap, isIntegerKey } from "@vue/shared";
+import { ComputedRefImpl } from './computed'
 
 type KeyToDepMap = Map<any, Dep>;
 const targetMap = new WeakMap<any, KeyToDepMap>();
@@ -44,15 +52,15 @@ export class ReactiveEffect<T = any> {
    * Can be attached after creation
    * @internal
    */
-  //  computed?: ComputedRefImpl<T>
-   /**
-    * @internal
-    */
-   allowRecurse?: boolean
-   /**
-    * @internal
-    */
-   private deferStop?: boolean
+   computed?: ComputedRefImpl<T>
+  /**
+   * @internal
+   */
+  allowRecurse?: boolean;
+  /**
+   * @internal
+   */
+  private deferStop?: boolean;
 
   onStop?: () => void;
   // dev only
@@ -71,46 +79,64 @@ export class ReactiveEffect<T = any> {
 
   run() {
     if (!this.active) {
-      return this.fn()
+      return this.fn();
     }
-    let parent: ReactiveEffect | undefined = activeEffect
-    let lastShouldTrack = shouldTrack
+    let parent: ReactiveEffect | undefined = activeEffect;
+    let lastShouldTrack = shouldTrack;
     while (parent) {
       if (parent === this) {
-        return
+        return;
       }
-      parent = parent.parent
+      parent = parent.parent;
     }
     try {
-      this.parent = activeEffect
-      activeEffect = this
-      shouldTrack = true
+      this.parent = activeEffect;
+      activeEffect = this;
+      shouldTrack = true;
 
-      trackOpBit = 1 << ++effectTrackDepth
+      trackOpBit = 1 << ++effectTrackDepth;
 
       if (effectTrackDepth <= maxMarkerBits) {
-        // 没执行过内部逻辑 暂未知
-        initDepMarkers(this)
+        // 首次收集不会给dep.w计数 因为没有dep 没收集过
+        // 如果有dep 则说明是收集过的依赖的  也就是之后修改属性 再次触发了effect进来的  那么调用wasTracked方法也就是给dep.w添加计数
+        // 注意!!! 这里仔细想了下 因为属性和effect是双向收集的 这里的initDepMarkers操作是在给当前这一层级的所有收集的属性初始化一次 是否为收集过依赖的标识
+        // 有什么作用呢？ 当接下来属性被读取 会触发track函数 这个时候会给dep.n打上计数(代表了被使用了) 此时会去看一下dep.w是否被计数过 计数过就不在双向收集
+        // 再考虑 为什么要计数？ 看例子:
+        // effect(()=>{
+        //   let name = flagMap.flag? a.name : b.name
+        //   document.getElementById('app').innerHTML = name
+        // })
+        // flagMap.flag = false
+        // 当状态改变 再次触发effect 因为三元表达式的存在, 
+        // 一开始b是没有收集依赖的 收集的是a  再次进入时改变了flag的状态 那么就与a无关了 此时因为遍历当前effect的dep 里面有a 所以给a的dep.w计数
+        // 但是a缺触发不到 不会触发track给dep.n计数  那么他最终的状态为dep.w有值 dep.n无值 那么effect结束时 下面finally时调用finalizeDepMarkers检查
+        // 就会清除掉a 因为a无论怎么变都不会再触发当前的effect了 只跟b有关系了 
+        // 新老方式对比 最新的这样只是双方互相清除了需要删除的属性/effect依赖  旧的是都清空 直接全清空  优化了效率
+        // finalizeDepMarkers中的判断要求 如果dep.w存在 dep.n不存在 则删除 否则没事
+        // 这里想下b的计数情况 应为dep.n = 2 dep.w = 0 满足finalizeDepMarkers中的判断要求 不会被删除
+        // 再想想flag的技术情况 应为dep.n = 2 dep.w = 2 满足finalizeDepMarkers中的判断要求 不会被删除
+        initDepMarkers(this); 
       } else {
-        cleanupEffect(this)
+        // 旧的兼容写法  在之后采用上面的方法 更快 超过30才会用这个  相当于每次触发effect都清空依赖 重新收集
+        cleanupEffect(this);
       }
       // 执行传入fn 为回调中的代理属性收集依赖 会走入对应的get或set中
       // 回到baseHandlers文件中get  会调用track函数
-      return this.fn()
+      return this.fn();
     } finally {
       if (effectTrackDepth <= maxMarkerBits) {
         // 小于30层 还会再最终处理下重复的依赖 暂未知出现场景
-        finalizeDepMarkers(this)
+        finalizeDepMarkers(this);
       }
 
-      trackOpBit = 1 << --effectTrackDepth
+      trackOpBit = 1 << --effectTrackDepth;
 
-      activeEffect = this.parent
-      shouldTrack = lastShouldTrack
-      this.parent = undefined
+      activeEffect = this.parent;
+      shouldTrack = lastShouldTrack;
+      this.parent = undefined;
 
       if (this.deferStop) {
-        this.stop()
+        this.stop();
       }
     }
   }
@@ -130,12 +156,12 @@ export class ReactiveEffect<T = any> {
 }
 
 function cleanupEffect(effect: ReactiveEffect) {
-  const { deps } = effect
+  const { deps } = effect;
   if (deps.length) {
     for (let i = 0; i < deps.length; i++) {
-      deps[i].delete(effect)
+      deps[i].delete(effect);
     }
-    deps.length = 0
+    deps.length = 0;
   }
 }
 
@@ -206,6 +232,7 @@ export function trackEffects(dep: Dep) {
   if (effectTrackDepth <= maxMarkerBits) {
     if (!newTracked(dep)) {
       dep.n |= trackOpBit; // set newly tracked
+      // 如果为false  则代表上面执行initDepMarkers方法时 已经标记了dep.w有计数 代表收集过依赖了 就不要再收集了 shouldTrack置为false
       shouldTrack = !wasTracked(dep);
     }
   } else {
@@ -228,6 +255,110 @@ export function trigger(
   newValue?: unknown,
   oldValue?: unknown,
   oldTarget?: Map<unknown, unknown> | Set<unknown>
-){
-  
+) {
+  const depsMap = targetMap.get(target);
+  if (!depsMap) {
+    // never been tracked
+    return;
+  }
+  let deps: (undefined | Dep)[] = [];
+  if (type === TriggerOpTypes.CLEAR) {
+    // collection being cleared
+    // trigger all effects for target
+    deps = [...depsMap.values()];
+  } else if (key === "length" && isArray(target)) {
+    depsMap.forEach((dep, key) => {
+      if (key === "length" || key >= (newValue as number)) {
+        deps.push(dep);
+      }
+    });
+  } else {
+    // schedule runs for SET | ADD | DELETE
+    if (key !== void 0) {
+      deps.push(depsMap.get(key));
+    }
+
+    // also run for iteration key on ADD | DELETE | Map.SET
+    switch (type) {
+      case TriggerOpTypes.ADD:
+        if (!isArray(target)) {
+          deps.push(depsMap.get(''));
+          if (isMap(target)) {
+            deps.push(depsMap.get(''));
+          }
+        } else if (isIntegerKey(key)) {
+          // new index added to array -> length changes
+          deps.push(depsMap.get("length"));
+        }
+        break;
+      case TriggerOpTypes.DELETE:
+        if (!isArray(target)) {
+          deps.push(depsMap.get(''));
+          if (isMap(target)) {
+            deps.push(depsMap.get(''));
+          }
+        }
+        break;
+      case TriggerOpTypes.SET:
+        if (isMap(target)) {
+          deps.push(depsMap.get(''));
+        }
+        break;
+    }
+  }
+
+  if (deps.length === 1) {
+    // 对象走这 因为出发set 对象一次只能改一个值dep为 [Set(ReactiveEffect)]
+    if (deps[0]) {
+      triggerEffects(deps[0])
+    }
+  } else {
+    const effects: ReactiveEffect[] = []
+    for (const dep of deps) {
+      if (dep) {
+        effects.push(...dep)
+      }
+    }
+    triggerEffects(createDep(effects))
+  }
 }
+
+export function triggerEffects(
+  dep: Dep | ReactiveEffect[],
+  debuggerEventExtraInfo?: DebuggerEventExtraInfo
+) {
+  // spread into array for stabilization
+  const effects = isArray(dep) ? dep : [...dep]
+  for (const effect of effects) {
+    if (effect.computed) {
+      triggerEffect(effect)
+    }
+  }
+  for (const effect of effects) {
+    if (!effect.computed) {
+      triggerEffect(effect)
+    }
+  }
+}
+
+function triggerEffect(
+  effect: ReactiveEffect,
+) {
+  // 防止这种情况 
+  // effect(()=>{
+  //   flagMap.flag++
+  // })
+  // flagMap.flag = 1
+  // 防止响应数据在effect外修改了 触发set走到这 此时activeEffect为空 所以会去调run 设置当前修改属性在最开始effect时收集的依赖为effect(执行fn了嘛)
+  // 那么effect中如果还对刚才外部的值有修改操作  还会再次走到这  那么effect !== activeEffect 就不会拦截  不拦截就会一直死循环
+  if (effect !== activeEffect || effect.allowRecurse) {
+    // 如果有调度器
+    if (effect.scheduler) {
+      effect.scheduler()
+    } else {
+      // 执行fn 也就是effect传入的函数
+      effect.run()
+    }
+  }
+}
+

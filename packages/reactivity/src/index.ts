@@ -1,2 +1,2 @@
-// export { effect } from "./effect";
+export { effect } from "./effect";
 export { reactive } from "./reactive";

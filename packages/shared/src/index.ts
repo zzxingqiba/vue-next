@@ -29,6 +29,11 @@ export const def = (obj: object, key: string | symbol, value: any) => {
   });
 };
 
+export const isMap = (val: unknown): val is Map<any, any> =>
+  toTypeString(val) === '[object Map]'
+export const isSet = (val: unknown): val is Set<any> =>
+  toTypeString(val) === '[object Set]'
+
 export const isSymbol = (val: unknown): val is symbol =>
   typeof val === "symbol";
 
