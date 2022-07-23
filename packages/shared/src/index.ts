@@ -2,7 +2,9 @@ import { makeMap } from "./makeMap";
 
 export { makeMap };
 
-export const NOOP = () => {}
+export const EMPTY_OBJ: { readonly [key: string]: any } = {};
+
+export const NOOP = () => {};
 
 export const isString = (val: unknown): val is string =>
   typeof val === "string";
@@ -40,6 +42,8 @@ export const isFunction = (val: unknown): val is Function =>
   typeof val === "function";
 export const isSymbol = (val: unknown): val is symbol =>
   typeof val === "symbol";
+export const isPlainObject = (val: unknown): val is object =>
+  toTypeString(val) === "[object Object]";
 
 export const extend = Object.assign;
 
