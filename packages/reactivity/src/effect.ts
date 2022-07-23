@@ -308,7 +308,7 @@ export function trigger(
   }
 
   if (deps.length === 1) {
-    // 对象走这 因为出发set 对象一次只能改一个值dep为 [Set(ReactiveEffect)]
+    // 对象走这 因为触发set 对象一次只能改一个值dep为 [Set(ReactiveEffect)]
     if (deps[0]) {
       triggerEffects(deps[0]);
     }
