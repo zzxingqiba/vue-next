@@ -10,7 +10,7 @@ import {
   isReadonly,
   isShallow,
 } from "./reactive";
-import { track, trigger } from "./effect";
+import { track, trigger, ITERATE_KEY } from "./effect";
 import { TrackOpTypes, TriggerOpTypes } from "./operations";
 import {
   isArray,
@@ -19,6 +19,7 @@ import {
   makeMap,
   isIntegerKey,
   hasChanged,
+  isObject,
 } from "@vue/shared";
 import { isRef } from "./ref";
 
@@ -113,6 +114,15 @@ function createGetter(isReadonly = false, shallow = false) {
       track(target, TrackOpTypes.GET, key);
     }
 
+    if (isObject(res)) {
+      // Convert returned value into a proxy as well. we do the isObject check
+      // here to avoid invalid value warning. Also need to lazy access readonly
+      // and reactive here to avoid circular dependency.
+      // ##预留readonly
+      // return isReadonly ? readonly(res) : reactive(res)
+      return reactive(res);
+    }
+
     return res;
   };
 }
@@ -159,10 +169,15 @@ function createSetter(shallow = false) {
   };
 }
 
+function ownKeys(target: object): (string | symbol)[] {
+  track(target, TrackOpTypes.ITERATE, isArray(target) ? "length" : ITERATE_KEY);
+  return Reflect.ownKeys(target);
+}
+
 export const mutableHandlers: ProxyHandler<object> = {
   get,
   set,
   // deleteProperty,
   // has,
-  // ownKeys
+  ownKeys, // for... in时会被触发
 };

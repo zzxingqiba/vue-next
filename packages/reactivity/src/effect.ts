@@ -11,6 +11,9 @@ import { EffectScope } from "./effectScope";
 import { extend, isArray, isMap, isIntegerKey } from "@vue/shared";
 import { ComputedRefImpl } from "./computed";
 
+export const ITERATE_KEY = Symbol("");
+export const MAP_KEY_ITERATE_KEY = Symbol("");
+
 type KeyToDepMap = Map<any, Dep>;
 const targetMap = new WeakMap<any, KeyToDepMap>();
 
@@ -144,13 +147,13 @@ export class ReactiveEffect<T = any> {
   stop() {
     // stopped while running itself - defer the cleanup
     if (activeEffect === this) {
-      this.deferStop = true
+      this.deferStop = true;
     } else if (this.active) {
-      cleanupEffect(this)
+      cleanupEffect(this);
       if (this.onStop) {
-        this.onStop()
+        this.onStop();
       }
-      this.active = false
+      this.active = false;
     }
   }
 }
@@ -282,9 +285,27 @@ export function trigger(
     switch (type) {
       case TriggerOpTypes.ADD:
         if (!isArray(target)) {
-          deps.push(depsMap.get(""));
+          // 这些 ITERATE_KEY 什么情况下用到？
+          // 例如:
+          // const b = reactive({name:{address:'x'}})
+          // watch(b, (newVal, oldVal) => {
+          //   console.log(newVal, oldVal)
+          // })
+          // b.name.a = 'a'
+          // watch([()=>b.name.a], (newVal, oldVal) => {
+          //   console.log(newVal, oldVal)
+          // })
+          // b.name.a = 'x'
+          // 当监听了一个proxy对象时, 会触发watch去递归循环遍历(for...in)自身属性 目的是为了让所有属性收集依赖,
+          // 但是(for...in)时 我们会触发proxy的ownKeys拦截,会首先给对象添加一个Symbol() Key, 并让这上面收集依赖,
+          // 当我们添加一个属性上没有的值 就会走到这里此时deps为空 因为没有这个新添加的a属性 所以到这里时又会添加一个什么？
+          // 给deps添加了一个Symbol上面收集的Effect, 这里也就是当前watch, 所以下面会去触发watch的回调, 这里例子是触发调度器job
+          // 之后watch会去调用当前run() 取一下新值嘛, 那么又走到了最开始 循环遍历，
+          // 但是此时不同的是 我们已经有a的值了 这次循环就会使a收集了当前的依赖, 所以之后a更改 会触发例子最后那个监听
+          // 感觉和Vue2在Observe类上存dep的操作类型 类似于$set思想一样
+          deps.push(depsMap.get(ITERATE_KEY));
           if (isMap(target)) {
-            deps.push(depsMap.get(""));
+            deps.push(depsMap.get(MAP_KEY_ITERATE_KEY));
           }
         } else if (isIntegerKey(key)) {
           // new index added to array -> length changes
@@ -293,15 +314,15 @@ export function trigger(
         break;
       case TriggerOpTypes.DELETE:
         if (!isArray(target)) {
-          deps.push(depsMap.get(""));
+          deps.push(depsMap.get(ITERATE_KEY));
           if (isMap(target)) {
-            deps.push(depsMap.get(""));
+            deps.push(depsMap.get(MAP_KEY_ITERATE_KEY));
           }
         }
         break;
       case TriggerOpTypes.SET:
         if (isMap(target)) {
-          deps.push(depsMap.get(""));
+          deps.push(depsMap.get(ITERATE_KEY));
         }
         break;
     }
