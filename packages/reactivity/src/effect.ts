@@ -143,15 +143,15 @@ export class ReactiveEffect<T = any> {
 
   stop() {
     // stopped while running itself - defer the cleanup
-    // if (activeEffect === this) {
-    //   this.deferStop = true
-    // } else if (this.active) {
-    //   cleanupEffect(this)
-    //   if (this.onStop) {
-    //     this.onStop()
-    //   }
-    //   this.active = false
-    // }
+    if (activeEffect === this) {
+      this.deferStop = true
+    } else if (this.active) {
+      cleanupEffect(this)
+      if (this.onStop) {
+        this.onStop()
+      }
+      this.active = false
+    }
   }
 }
 

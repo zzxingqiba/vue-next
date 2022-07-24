@@ -78,7 +78,8 @@ function findInsertionIndex(id: number) {
 
   return start
 }
-
+// 执行顺序
+// queueJob ==> queueFlush ==> flushJobs ==> nextTick
 export function queueJob(job: SchedulerJob) {
   // the dedupe search uses the startIndex argument of Array.includes()
   // by default the search index includes the current job that is being run

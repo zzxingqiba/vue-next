@@ -124,7 +124,7 @@ function doWatch(
 
   let oldValue = isMultiSource ? [] : INITIAL_WATCHER_VALUE;
 
-  // 调度器被触发了 scheduler文件中 flushPreFlushCbs去过重了 
+  // 调度器被触发了 scheduler文件中 flushPreFlushCbs去过重了
   // 虽然每个watch会收集他自己对应的job 但是对于每一个watch来说 自己监视的属性多次改变时收集的job都是同一个 去重后 只会触发一次job
   // 来看下面发生了什么 盲猜调用了cb 因为getter是监视的属性 cb自然要调度器来调用了 这也是起名SchedulerJob的原因吧
   const job: SchedulerJob = () => {
@@ -146,7 +146,30 @@ function doWatch(
           : hasChanged(newValue, oldValue)) // 一般走这里 比较新旧值是否一致
       ) {
         // cleanup before running cb again
-        // 这个后续再看
+        // 这个后续再看  可以利用这里做一个闭包  使用情景  只会触发一次输出  因为同步任务先执行 flush:'sync'同步执行
+        // 执行了两次后下次总将上次的置为了true 看上面的英文备注 在第二次调cb前 回去调一下第一次存入的cleanup 置为true 再去执行cb 执行cb时传入的又是新的clear  总结还是利用了闭包
+        // function getData(timer){
+        //   return new Promise((resolve, reject) => {
+        //     setTimeout(()=>{
+        //       resolve(timer)
+        //     }, timer)
+        //   })
+        // }
+        // // debugger
+        // let i = 3000
+        // watch(() => a.name, async(newVal,oldVal, onCleanup)=>{
+        //   let clear = false
+        //   onCleanup(() => {
+        //     clear = true
+        //   })
+        //   i -= 1000
+        //   let r = await getData(i)
+        //   if(!clear) console.log(newVal,oldVal)
+        // }, {
+        //   flush:'sync'
+        // })
+        // a.name = 'x'
+        // a.name = '12441'
         if (cleanup) {
           cleanup();
         }
@@ -173,9 +196,12 @@ function doWatch(
   let scheduler: EffectScheduler = () => {};
 
   if (flush === "sync") {
+    // 正常会是异步执行 也就是多次改变监听值 只会触发一次 但是走了这里就代表 每改变一次 就直接调用cb  改了多少次就调用多少次
     scheduler = job as any; // the scheduler function gets called directly
   } else if (flush === "post") {
-    // scheduler = () => queuePostRenderEffect(job, instance && instance.suspense)
+    // ##未尝试 需要写完渲染才能用这里看到现象 官网解释 如果需要在组件更新(例如：当与模板引用一起)后重新运行侦听器副作用
+    // 看了下代码 将job放到了渲染完页面执行了  也就相当于在watch中获取dom元素  要提供flush: 'post'配置才能获取到最新dom  和vue2的nextTick一样 只不过这里写在watch中用的
+    // scheduler = () => queuePostRenderEffect(job)
   } else {
     // default: 'pre'
     // 平常走这里 看一下scheduler中的 queuePreFlushCb  感觉是在批处理而已(watch是放在promise中执行的)  最后会调用job
@@ -194,7 +220,7 @@ function doWatch(
       // 1.函数形式
       // watch(() => a.name, (newVal, oldVal) => {
       //   console.log(newVal, oldVal)
-      // }) 
+      // })
       // 执行() => a.name 让被观察的属性收集当前ReactiveEffect(彼此双向收集)  得到值赋值给oldValue
       oldValue = effect.run();
     }
@@ -208,6 +234,7 @@ function doWatch(
   }
 
   return () => {
+    // sync时会执行stop前的改变  pre普通watch一次监听也不会触发 因为是watch是微任务
     effect.stop();
   };
 }
