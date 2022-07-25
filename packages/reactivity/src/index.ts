@@ -1,6 +1,7 @@
 export {
   isRef,
   Ref,
+  ref,
 } from './ref'
 export {
   reactive,

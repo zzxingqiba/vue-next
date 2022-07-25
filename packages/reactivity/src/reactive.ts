@@ -122,9 +122,9 @@ function createReactiveObject(
 
 export function isReactive(value: unknown): boolean {
   if (isReadonly(value)) {
-    return isReactive((value as Target)[ReactiveFlags.RAW])
+    return isReactive((value as Target)[ReactiveFlags.RAW]);
   }
-  return !!(value && (value as Target)[ReactiveFlags.IS_REACTIVE])
+  return !!(value && (value as Target)[ReactiveFlags.IS_REACTIVE]);
 }
 
 export function isReadonly(value: unknown): boolean {
@@ -134,6 +134,10 @@ export function toRaw<T>(observed: T): T {
   const raw = observed && (observed as Target)[ReactiveFlags.RAW];
   return raw ? toRaw(raw) : observed;
 }
+
+export const toReactive = <T extends unknown>(value: T): T =>
+  isObject(value) ? reactive(value) : value;
+
 export function isShallow(value: unknown): boolean {
-  return !!(value && (value as Target)[ReactiveFlags.IS_SHALLOW])
+  return !!(value && (value as Target)[ReactiveFlags.IS_SHALLOW]);
 }
