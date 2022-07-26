@@ -1,10 +1,18 @@
 import { makeMap } from "./makeMap";
+export * from './typeUtils'
+export * from './shapeFlags'
+
 
 export { makeMap };
 
+/**
+ * Always return false.
+ */
+export const NO = () => false
+
 export const EMPTY_OBJ: { readonly [key: string]: any } = {};
 
-export const NOOP = () => {};
+export const NOOP = () => { };
 
 export const isString = (val: unknown): val is string =>
   typeof val === "string";
@@ -56,3 +64,18 @@ export const isIntegerKey = (key: unknown) =>
 // compare whether a value has changed, accounting for NaN.
 export const hasChanged = (value: any, oldValue: any): boolean =>
   !Object.is(value, oldValue);
+
+let _globalThis: any
+export const getGlobalThis = (): any => {
+  return (
+    _globalThis ||
+    (_globalThis =
+      typeof globalThis !== 'undefined'
+        ? globalThis
+        : typeof self !== 'undefined'
+          ? self
+          : typeof window !== 'undefined'
+            ? window
+            : {})
+  )
+}
