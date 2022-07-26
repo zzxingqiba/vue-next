@@ -2,6 +2,9 @@ export {
   isRef,
   Ref,
   ref,
+  proxyRefs,
+  toRef,
+  toRefs,
 } from './ref'
 export {
   reactive,

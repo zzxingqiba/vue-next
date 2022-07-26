@@ -5,8 +5,8 @@ import {
   triggerEffects,
 } from "./effect";
 import { createDep, Dep } from "./dep";
-import { toRaw, toReactive } from "./reactive";
-import { hasChanged } from "@vue/shared";
+import { isReactive, toRaw, toReactive } from "./reactive";
+import { hasChanged, IfAny, isArray } from "@vue/shared";
 
 export interface Ref<T = any> {
   value: T;
@@ -73,4 +73,84 @@ export function triggerRefValue(ref: RefBase<any>, newVal?: any) {
   if (ref.dep) {
     triggerEffects(ref.dep);
   }
+}
+
+export function unref<T>(ref: T | Ref<T>): T {
+  return isRef(ref) ? (ref.value as any) : ref
+}
+
+const shallowUnwrapHandlers: ProxyHandler<any> = {
+  get: (target, key, receiver) => unref(Reflect.get(target, key, receiver)),
+  set: (target, key, value, receiver) => {
+    const oldValue = target[key]
+    if (isRef(oldValue) && !isRef(value)) {
+      oldValue.value = value
+      return true
+    } else {
+      return Reflect.set(target, key, value, receiver)
+    }
+  }
+}
+
+export type ShallowUnwrapRef<T> = {
+  [K in keyof T]: T[K] extends Ref<infer V>
+  ? V
+  : // if `V` is `unknown` that means it does not extend `Ref` and is undefined
+  T[K] extends Ref<infer V> | undefined
+  ? unknown extends V
+  ? undefined
+  : V | undefined
+  : T[K]
+}
+
+export function proxyRefs<T extends object>(
+  objectWithRefs: T
+): ShallowUnwrapRef<T> {
+  return isReactive(objectWithRefs)
+    ? objectWithRefs
+    : new Proxy(objectWithRefs, shallowUnwrapHandlers)
+}
+
+export type ToRef<T> = IfAny<T, Ref<T>, [T] extends [Ref] ? T : Ref<T>>
+
+export function toRef<T extends object, K extends keyof T>(
+  object: T,
+  key: K,
+  defaultValue?: T[K]
+): ToRef<T[K]> {
+  const val = object[key]
+  return isRef(val)
+    ? val
+    : (new ObjectRefImpl(object, key, defaultValue) as any)
+}
+
+class ObjectRefImpl<T extends object, K extends keyof T> {
+  public readonly __v_isRef = true
+
+  constructor(
+    private readonly _object: T,
+    private readonly _key: K,
+    private readonly _defaultValue?: T[K]
+  ) { }
+
+  get value() {
+    const val = this._object[this._key]
+    return val === undefined ? (this._defaultValue as T[K]) : val
+  }
+
+  set value(newVal) {
+    this._object[this._key] = newVal
+  }
+}
+
+export type ToRefs<T = any> = {
+  [K in keyof T]: ToRef<T[K]>
+}
+
+export function toRefs<T extends object>(object: T): ToRefs<T> {
+  const ret: any = isArray(object) ? new Array(object.length) : {}
+  for (const key in object) {
+    ret[key] = toRef(object, key)
+  }
+  return ret
 }
