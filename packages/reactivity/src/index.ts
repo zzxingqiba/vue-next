@@ -12,6 +12,7 @@ export {
   isReadonly,
   isShallow,
   toRaw,
+  markRaw,
   ReactiveFlags,
   UnwrapNestedRefs
 } from './reactive'

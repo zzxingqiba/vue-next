@@ -135,8 +135,15 @@ export function toRaw<T>(observed: T): T {
   return raw ? toRaw(raw) : observed;
 }
 
-export const toReactive = <T extends unknown>(value: T): T =>
+export const toReactive = (value) =>
   isObject(value) ? reactive(value) : value;
+
+export function markRaw<T extends object>(
+  value: T
+){
+  def(value, ReactiveFlags.SKIP, true)
+  return value
+}
 
 export function isShallow(value: unknown): boolean {
   return !!(value && (value as Target)[ReactiveFlags.IS_SHALLOW]);

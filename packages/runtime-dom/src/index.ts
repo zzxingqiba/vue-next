@@ -5,10 +5,12 @@ import { extend, isFunction, isString } from '@vue/shared';
 import { nodeOps } from './nodeOps';
 import { patchProp } from './patchProp';
 
+
 const rendererOptions = /*#__PURE__*/ extend({ patchProp }, nodeOps)
 
 let renderer:any;
 
+// ensureRenderer调用baseCreateRenderer 返回{render, createApp}对象
 function ensureRenderer() {
   return (
     renderer ||
@@ -16,6 +18,7 @@ function ensureRenderer() {
   )
 }
 
+// 外部暴露createApp
 export const createApp = ((...args: any) => {
   const app = ensureRenderer().createApp(...args)
 

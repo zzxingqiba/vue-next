@@ -10,10 +10,26 @@ export const Fragment = Symbol(undefined) as any as {
     $props: any
   }
 }
+export const Text = Symbol(undefined)
+export const Comment = Symbol(undefined)
+export const Static = Symbol(undefined)
 
 export interface VNode{
   key: string | number | symbol | null
-  appContext: any | null,
+  type: any
+  appContext: any | null
+  children: any
+  // optimization only
+  shapeFlag: number
+  patchFlag: number
+  /**
+   * SFC only. This is assigned to:
+   * - Slot fragment vnodes with :slotted SFC styles.
+   * - Component vnodes (during patch/hydration) so that its root node can
+   *   inherit the component's slotScopeIds
+   * @internal
+   */
+  slotScopeIds: string[] | null
 }
 
 export function isVNode(value: any): value is VNode {
@@ -108,7 +124,13 @@ function createBaseVNode(
 }
 
 export function normalizeChildren(vnode: VNode, children: unknown) {
-  
+  let type = 0
+  // const { shapeFlag } = vnode
+  if (children == null) {
+    children = null
+  } 
+  vnode.children = children
+  vnode.shapeFlag |= type
 }
 
 const normalizeKey = ({ key }: any): VNode['key'] =>
@@ -126,4 +148,8 @@ const normalizeRef = ({
         : ref
       : null
   ) as any
+}
+
+export function isSameVNodeType(n1: VNode, n2: VNode): boolean {
+  return n1.type === n2.type && n1.key === n2.key
 }

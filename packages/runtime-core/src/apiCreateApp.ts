@@ -29,10 +29,11 @@ export function createAppAPI(
   render,
   hydrate?: any
 ){
-  // rootProps为根props
+  // 本质返回app对象 将一系列方法挂载到app上 最后返回了app
+  // rootComponent为 rootProps为根props
   return function createApp(rootComponent, rootProps = null) {
     if (!isFunction(rootComponent)) {
-      // 此处为createApp处传进来的options
+      // 此处为用户外部调createApp处传进来的options
       // 例如：
       // createApp({
       //   data(){
@@ -83,14 +84,15 @@ export function createAppAPI(
         isSVG?: boolean
       ){
         if (!isMounted) {
+          // 创建虚拟节点
           const vnode = createVNode(rootComponent, rootProps)
-          console.log(vnode)
-          // vnode.appContext = context
-          // if (isHydrate && hydrate) {
-          //   hydrate(vnode, rootContainer as any)
-          // } else {
-          //   render(vnode, rootContainer, isSVG)
-          // }
+          vnode.appContext = context
+          if (isHydrate && hydrate) {
+            hydrate(vnode, rootContainer as any)
+          } else {
+            //渲染虚拟节点为真实节点
+            render(vnode, rootContainer, isSVG)
+          }
           // isMounted = true
           // app._container = rootContainer
           // // for devtools and telemetry

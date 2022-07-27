@@ -4,3 +4,5 @@ export {
 export { computed } from "./apiComputed";
 export { watch } from "./apiWatch";
 export { createRenderer } from './renderer'
+// For integration with runtime compiler
+export { registerRuntimeCompiler } from './component'
