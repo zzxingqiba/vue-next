@@ -2,6 +2,7 @@ import { makeMap } from "./makeMap";
 export * from './typeUtils'
 export * from './shapeFlags'
 export * from './patchFlags'
+export * from './normalizeProp'
 
 
 export { makeMap };
@@ -14,6 +15,11 @@ export const NO = () => false
 export const EMPTY_OBJ: { readonly [key: string]: any } = {};
 
 export const NOOP = () => { };
+
+const onRE = /^on[^a-z]/
+export const isOn = (key: string) => onRE.test(key)
+
+export const isModelListener = (key: string) => key.startsWith('onUpdate:')
 
 export const isString = (val: unknown): val is string =>
   typeof val === "string";
@@ -80,3 +86,42 @@ export const getGlobalThis = (): any => {
             : {})
   )
 }
+
+export const isReservedProp = /*#__PURE__*/ makeMap(
+  // the leading comma is intentional so empty string "" is also included
+  ',key,ref,ref_for,ref_key,' +
+    'onVnodeBeforeMount,onVnodeMounted,' +
+    'onVnodeBeforeUpdate,onVnodeUpdated,' +
+    'onVnodeBeforeUnmount,onVnodeUnmounted'
+)
+
+const cacheStringFunction = <T extends (str: string) => string>(fn: T): T => {
+  const cache: Record<string, string> = Object.create(null)
+  return ((str: string) => {
+    const hit = cache[str]
+    return hit || (cache[str] = fn(str))
+  }) as any
+}
+
+const hyphenateRE = /\B([A-Z])/g
+/**
+ * @private
+ */
+export const hyphenate = cacheStringFunction((str: string) =>
+  str.replace(hyphenateRE, '-$1').toLowerCase()
+)
+
+/**
+ * @private
+ */
+ export const capitalize = cacheStringFunction(
+  (str: string) => str.charAt(0).toUpperCase() + str.slice(1)
+)
+
+const camelizeRE = /-(\w)/g
+/**
+ * @private
+ */
+export const camelize = cacheStringFunction((str: string): string => {
+  return str.replace(camelizeRE, (_, c) => (c ? c.toUpperCase() : ''))
+})

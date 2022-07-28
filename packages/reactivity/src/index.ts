@@ -11,6 +11,7 @@ export {
   isReactive,
   isReadonly,
   isShallow,
+  isProxy,
   toRaw,
   markRaw,
   ReactiveFlags,

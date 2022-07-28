@@ -5,32 +5,186 @@ import {
   VNode,
   isSameVNodeType,
   Static,
+  normalizeVNode,
 } from './vnode'
 import {
+  isReservedProp,
   NOOP, PatchFlags, ShapeFlags,
 } from "@vue/shared";
 import { createAppAPI } from './apiCreateApp'
 import { createComponentInstance, setupComponent } from './component';
 
-export function createRenderer(options:any) {
+export function createRenderer(options: any) {
   return baseCreateRenderer(options)
 }
-function baseCreateRenderer(options:any, createHydrationFns?:any){
-  //   const {
-  //   insert: hostInsert,
-  //   remove: hostRemove,
-  //   patchProp: hostPatchProp,
-  //   createElement: hostCreateElement,
-  //   createText: hostCreateText,
-  //   createComment: hostCreateComment,
-  //   setText: hostSetText,
-  //   setElementText: hostSetElementText,
-  //   parentNode: hostParentNode,
-  //   nextSibling: hostNextSibling,
-  //   setScopeId: hostSetScopeId = NOOP,
-  //   cloneNode: hostCloneNode,
-  //   insertStaticContent: hostInsertStaticContent
-  // } = options
+
+function baseCreateRenderer(options: any, createHydrationFns?: any) {
+  // 更新DOM的一些方法
+  const {
+    insert: hostInsert,
+    remove: hostRemove,
+    patchProp: hostPatchProp,
+    createElement: hostCreateElement,
+    createText: hostCreateText,
+    createComment: hostCreateComment,
+    setText: hostSetText,
+    setElementText: hostSetElementText,
+    parentNode: hostParentNode,
+    nextSibling: hostNextSibling,
+    setScopeId: hostSetScopeId = NOOP,
+    cloneNode: hostCloneNode,
+    insertStaticContent: hostInsertStaticContent
+  } = options
+
+  const processText = (n1, n2, container, anchor) => {
+    if (n1 == null) {
+      hostInsert(
+        (n2.el = hostCreateText(n2.children as string)),
+        container,
+        anchor
+      )
+    } else {
+      const el = (n2.el = n1.el!)
+      if (n2.children !== n1.children) {
+        hostSetText(el, n2.children as string)
+      }
+    }
+  }
+
+  const processElement = (
+    n1: VNode | null,
+    n2: VNode,
+    container,
+    anchor,
+    parentComponent,
+    parentSuspense,
+    isSVG: boolean,
+    slotScopeIds: string[] | null,
+    optimized: boolean
+  ) => {
+    isSVG = isSVG || (n2.type as string) === 'svg'
+    if (n1 == null) {
+      mountElement(
+        n2,
+        container,
+        anchor,
+        parentComponent,
+        parentSuspense,
+        isSVG,
+        slotScopeIds,
+        optimized
+      )
+    } else {
+      // patchElement(
+      //   n1,
+      //   n2,
+      //   parentComponent,
+      //   parentSuspense,
+      //   isSVG,
+      //   slotScopeIds,
+      //   optimized
+      // )
+    }
+  }
+
+  const mountElement = (
+    vnode: VNode,
+    container,
+    anchor,
+    parentComponent,
+    parentSuspense,
+    isSVG: boolean,
+    slotScopeIds: string[] | null,
+    optimized: boolean
+  ) => {
+    let el
+    let vnodeHook
+    const { type, props, shapeFlag } = vnode
+    // if (
+    //   !__DEV__ &&
+    //   vnode.el &&
+    //   hostCloneNode !== undefined &&
+    //   patchFlag === PatchFlags.HOISTED
+    // ) {
+    //   // If a vnode has non-null el, it means it's being reused.
+    //   // Only static vnodes can be reused, so its mounted DOM nodes should be
+    //   // exactly the same, and we can simply do a clone here.
+    //   // only do this in production since cloned trees cannot be HMR updated.
+    //   el = vnode.el = hostCloneNode(vnode.el)
+    // }else{
+    // 创建当前空白节点并将创建的节点挂载到vnode的el属性上 以便更新时做diff
+    el = vnode.el = hostCreateElement(
+      vnode.type as string,
+      isSVG,
+      props && props.is,
+      props
+    )
+    // 在vnode处理时 将当前节点与孩子类型做了 | 运算 
+    // 此时验证当前节点孩子为文本节点 使用 & 运算
+    if (shapeFlag & ShapeFlags.TEXT_CHILDREN) {
+      hostSetElementText(el, vnode.children as string)
+    } else if (shapeFlag & ShapeFlags.ARRAY_CHILDREN) {
+      // 如果孩子节点为数组时
+      mountChildren(
+        vnode.children,
+        el,
+        null,
+        parentComponent,
+        parentSuspense,
+        isSVG && type !== 'foreignObject',
+        slotScopeIds,
+        optimized
+      )
+    }
+    if (props) {
+      for (const key in props) {
+        if (key !== 'value' && !isReservedProp(key)) {
+          hostPatchProp(
+            el,
+            key,
+            null,
+            props[key],
+            isSVG,
+            vnode.children as VNode[],
+            parentComponent,
+            parentSuspense,
+            unmountChildren
+          )
+        }
+      }
+    }
+    // }
+    hostInsert(el, container, anchor)
+  }
+
+  const mountChildren = (
+    children,
+    container,
+    anchor,
+    parentComponent,
+    parentSuspense,
+    isSVG,
+    slotScopeIds,
+    optimized,
+    start = 0
+  ) => {
+    for (let i = start; i < children.length; i++) {
+      const child = (children[i] = normalizeVNode(children[i]))
+      patch(
+        null,
+        child,
+        container,
+        anchor,
+        parentComponent,
+        parentSuspense,
+        isSVG,
+        slotScopeIds,
+        optimized
+      )
+    }
+  }
+
+  const unmountChildren = {}
 
   const patch = (
     n1,
@@ -59,7 +213,7 @@ function baseCreateRenderer(options:any, createHydrationFns?:any){
     const { type, ref, shapeFlag } = n2
     switch (type) {
       case Text:
-        // processText(n1, n2, container, anchor)
+        processText(n1, n2, container, anchor)
         break
       case Comment:
         // processCommentNode(n1, n2, container, anchor)
@@ -84,19 +238,7 @@ function baseCreateRenderer(options:any, createHydrationFns?:any){
         break
       default:
         if (shapeFlag & ShapeFlags.ELEMENT) {
-          // processElement(
-          //   n1,
-          //   n2,
-          //   container,
-          //   anchor,
-          //   parentComponent,
-          //   parentSuspense,
-          //   isSVG,
-          //   slotScopeIds,
-          //   optimized
-          // )
-        } else if (shapeFlag & ShapeFlags.COMPONENT) {
-          processComponent(
+          processElement(
             n1,
             n2,
             container,
@@ -107,34 +249,46 @@ function baseCreateRenderer(options:any, createHydrationFns?:any){
             slotScopeIds,
             optimized
           )
-        } 
-        // else if (shapeFlag & ShapeFlags.TELEPORT) {
-        //   ;(type as typeof TeleportImpl).process(
-        //     n1 as TeleportVNode,
-        //     n2 as TeleportVNode,
-        //     container,
-        //     anchor,
-        //     parentComponent,
-        //     parentSuspense,
-        //     isSVG,
-        //     slotScopeIds,
-        //     optimized,
-        //     internals
-        //   )
-        // } else if (__FEATURE_SUSPENSE__ && shapeFlag & ShapeFlags.SUSPENSE) {
-        //   ;(type as typeof SuspenseImpl).process(
-        //     n1,
-        //     n2,
-        //     container,
-        //     anchor,
-        //     parentComponent,
-        //     parentSuspense,
-        //     isSVG,
-        //     slotScopeIds,
-        //     optimized,
-        //     internals
-        //   )
-        // }
+        } else if (shapeFlag & ShapeFlags.COMPONENT) {
+          // processComponent(
+          //   n1,
+          //   n2,
+          //   container,
+          //   anchor,
+          //   parentComponent,
+          //   parentSuspense,
+          //   isSVG,
+          //   slotScopeIds,
+          //   optimized
+          // )
+        }
+      // else if (shapeFlag & ShapeFlags.TELEPORT) {
+      //   ;(type as typeof TeleportImpl).process(
+      //     n1 as TeleportVNode,
+      //     n2 as TeleportVNode,
+      //     container,
+      //     anchor,
+      //     parentComponent,
+      //     parentSuspense,
+      //     isSVG,
+      //     slotScopeIds,
+      //     optimized,
+      //     internals
+      //   )
+      // } else if (__FEATURE_SUSPENSE__ && shapeFlag & ShapeFlags.SUSPENSE) {
+      //   ;(type as typeof SuspenseImpl).process(
+      //     n1,
+      //     n2,
+      //     container,
+      //     anchor,
+      //     parentComponent,
+      //     parentSuspense,
+      //     isSVG,
+      //     slotScopeIds,
+      //     optimized,
+      //     internals
+      //   )
+      // }
     }
   }
 
@@ -223,7 +377,7 @@ function baseCreateRenderer(options:any, createHydrationFns?:any){
 
   return {
     render,
-    hydrate:undefined,
+    hydrate: undefined,
     createApp: createAppAPI(render, undefined)
   }
 }

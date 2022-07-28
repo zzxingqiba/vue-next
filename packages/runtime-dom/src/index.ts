@@ -10,6 +10,11 @@ const rendererOptions = /*#__PURE__*/ extend({ patchProp }, nodeOps)
 
 let renderer:any;
 
+// 提供render方法
+export const render = ((...args) => {
+  ensureRenderer().render(...args)
+})
+
 // ensureRenderer调用baseCreateRenderer 返回{render, createApp}对象
 function ensureRenderer() {
   return (
