@@ -6,8 +6,10 @@ import {
   isSameVNodeType,
   Static,
   normalizeVNode,
+  cloneIfMounted,
 } from './vnode'
 import {
+  EMPTY_OBJ,
   isReservedProp,
   NOOP, PatchFlags, ShapeFlags,
 } from "@vue/shared";
@@ -36,156 +38,6 @@ function baseCreateRenderer(options: any, createHydrationFns?: any) {
     insertStaticContent: hostInsertStaticContent
   } = options
 
-  const processText = (n1, n2, container, anchor) => {
-    if (n1 == null) {
-      hostInsert(
-        (n2.el = hostCreateText(n2.children as string)),
-        container,
-        anchor
-      )
-    } else {
-      const el = (n2.el = n1.el!)
-      if (n2.children !== n1.children) {
-        hostSetText(el, n2.children as string)
-      }
-    }
-  }
-
-  const processElement = (
-    n1: VNode | null,
-    n2: VNode,
-    container,
-    anchor,
-    parentComponent,
-    parentSuspense,
-    isSVG: boolean,
-    slotScopeIds: string[] | null,
-    optimized: boolean
-  ) => {
-    isSVG = isSVG || (n2.type as string) === 'svg'
-    if (n1 == null) {
-      mountElement(
-        n2,
-        container,
-        anchor,
-        parentComponent,
-        parentSuspense,
-        isSVG,
-        slotScopeIds,
-        optimized
-      )
-    } else {
-      // patchElement(
-      //   n1,
-      //   n2,
-      //   parentComponent,
-      //   parentSuspense,
-      //   isSVG,
-      //   slotScopeIds,
-      //   optimized
-      // )
-    }
-  }
-
-  const mountElement = (
-    vnode: VNode,
-    container,
-    anchor,
-    parentComponent,
-    parentSuspense,
-    isSVG: boolean,
-    slotScopeIds: string[] | null,
-    optimized: boolean
-  ) => {
-    let el
-    let vnodeHook
-    const { type, props, shapeFlag } = vnode
-    // if (
-    //   !__DEV__ &&
-    //   vnode.el &&
-    //   hostCloneNode !== undefined &&
-    //   patchFlag === PatchFlags.HOISTED
-    // ) {
-    //   // If a vnode has non-null el, it means it's being reused.
-    //   // Only static vnodes can be reused, so its mounted DOM nodes should be
-    //   // exactly the same, and we can simply do a clone here.
-    //   // only do this in production since cloned trees cannot be HMR updated.
-    //   el = vnode.el = hostCloneNode(vnode.el)
-    // }else{
-    // 创建当前空白节点并将创建的节点挂载到vnode的el属性上 以便更新时做diff
-    el = vnode.el = hostCreateElement(
-      vnode.type as string,
-      isSVG,
-      props && props.is,
-      props
-    )
-    // 在vnode处理时 将当前节点与孩子类型做了 | 运算 
-    // 此时验证当前节点孩子为文本节点 使用 & 运算
-    if (shapeFlag & ShapeFlags.TEXT_CHILDREN) {
-      hostSetElementText(el, vnode.children as string)
-    } else if (shapeFlag & ShapeFlags.ARRAY_CHILDREN) {
-      // 如果孩子节点为数组时
-      mountChildren(
-        vnode.children,
-        el,
-        null,
-        parentComponent,
-        parentSuspense,
-        isSVG && type !== 'foreignObject',
-        slotScopeIds,
-        optimized
-      )
-    }
-    if (props) {
-      for (const key in props) {
-        if (key !== 'value' && !isReservedProp(key)) {
-          hostPatchProp(
-            el,
-            key,
-            null,
-            props[key],
-            isSVG,
-            vnode.children as VNode[],
-            parentComponent,
-            parentSuspense,
-            unmountChildren
-          )
-        }
-      }
-    }
-    // }
-    hostInsert(el, container, anchor)
-  }
-
-  const mountChildren = (
-    children,
-    container,
-    anchor,
-    parentComponent,
-    parentSuspense,
-    isSVG,
-    slotScopeIds,
-    optimized,
-    start = 0
-  ) => {
-    for (let i = start; i < children.length; i++) {
-      const child = (children[i] = normalizeVNode(children[i]))
-      patch(
-        null,
-        child,
-        container,
-        anchor,
-        parentComponent,
-        parentSuspense,
-        isSVG,
-        slotScopeIds,
-        optimized
-      )
-    }
-  }
-
-  const unmountChildren = {}
-
   const patch = (
     n1,
     n2,
@@ -201,11 +53,13 @@ function baseCreateRenderer(options: any, createHydrationFns?: any) {
       return
     }
     // patching & not same type, unmount old tree
+    // 旧节点存在  新旧节点不一致  移除旧节点 置为null 就会走挂载逻辑生成新的节点   
     if (n1 && !isSameVNodeType(n1, n2)) {
-      // anchor = getNextHostNode(n1)
-      // unmount(n1, parentComponent, parentSuspense, true)
-      // n1 = null
+      anchor = getNextHostNode(n1)
+      unmount(n1, parentComponent, parentSuspense, true)
+      n1 = null
     }
+    // ##未知 diff优化
     if (n2.patchFlag === PatchFlags.BAIL) {
       optimized = false
       n2.dynamicChildren = null
@@ -292,6 +146,371 @@ function baseCreateRenderer(options: any, createHydrationFns?: any) {
     }
   }
 
+  const patchElement = (
+    n1: VNode,
+    n2: VNode,
+    parentComponent,
+    parentSuspense,
+    isSVG: boolean,
+    slotScopeIds: string[] | null,
+    optimized: boolean
+  ) => {
+    const el = (n2.el = n1.el!)
+
+    const oldProps = n1.props || EMPTY_OBJ
+    const newProps = n2.props || EMPTY_OBJ
+    const areChildrenSVG = isSVG && n2.type !== 'foreignObject'
+    // full diff
+    // 比较并更新孩子节点 全量diff
+    patchChildren(
+      n1,
+      n2,
+      el,
+      null,
+      parentComponent,
+      parentSuspense,
+      areChildrenSVG,
+      slotScopeIds,
+      false
+    )
+
+    // unoptimized, full diff
+    // 比较并更新属性 未优化 全量diff
+    patchProps(
+      el,
+      n2,
+      oldProps,
+      newProps,
+      parentComponent,
+      parentSuspense,
+      isSVG
+    )
+  }
+
+  const patchChildren = (
+    n1,
+    n2,
+    container,
+    anchor,
+    parentComponent,
+    parentSuspense,
+    isSVG,
+    slotScopeIds,
+    optimized = false
+  ) => {
+    const c1 = n1 && n1.children
+    const prevShapeFlag = n1 ? n1.shapeFlag : 0
+    const c2 = n2.children
+    const { patchFlag, shapeFlag } = n2
+
+    // children has 3 possibilities: text, array or no children.
+    // 新旧子节点出现可能为 (空、数组、文本) 9种情况
+    //✅  pos        旧         新          操作
+    //✅   1         文本       空          清空                  
+    //✅   2         文本       文本        对比 不同则设置文本     
+    //✅   3         文本       数组        清空 创建节点
+    //✅   4         数组       空          卸载旧节点
+    //✅   5         数组       文本        卸载旧节点 设置文本 
+    //✅   6         数组       数组        diff
+    //✅   7         空         空          忽略
+    //✅   8         空         文本        设置文本
+    //✅   9         空         数组        创建节点
+
+    // 新节点为文本节点 2 5 8
+    if (shapeFlag & ShapeFlags.TEXT_CHILDREN) {
+      // 5 (进行了一部优化 普通的并未遍历删除 而是直接走了hostSetElementText替换为文字 也达到删除效果)
+      if (prevShapeFlag & ShapeFlags.ARRAY_CHILDREN) {
+        unmountChildren(c1, parentComponent, parentSuspense)
+      }
+      // 2 5 8
+      if (c1 != c2) {
+        hostSetElementText(container, c2 as string)
+      }
+    }
+    // 新节点为空或数组
+    else {
+      // 旧节点为数组 4 6
+      if (prevShapeFlag & ShapeFlags.ARRAY_CHILDREN) {
+        // 6 同为数组 需diff
+        if (shapeFlag & ShapeFlags.ARRAY_CHILDREN) {
+          // 有key值比较
+          patchKeyedChildren(
+            c1,
+            c2,
+            container,
+            anchor,
+            parentComponent,
+            parentSuspense,
+            isSVG,
+            slotScopeIds,
+            optimized
+          )
+        } else {
+          // no new children, just unmount old
+          // 4
+          unmountChildren(c1 as VNode[], parentComponent, parentSuspense, true)
+        }
+      }
+      // 1 3 7(忽略) 9
+      // 旧节点为空或文本 新节点为 数组 文本 空(忽略)
+      else {
+        // 1 3
+        if (prevShapeFlag & ShapeFlags.TEXT_CHILDREN) {
+          hostSetElementText(container, '')
+        }
+        // 3 9
+        // mount new if array
+        if (shapeFlag & ShapeFlags.ARRAY_CHILDREN) {
+          mountChildren(
+            c2,
+            container,
+            anchor,
+            parentComponent,
+            parentSuspense,
+            isSVG,
+            slotScopeIds,
+            optimized
+          )
+        }
+      }
+    }
+  }
+
+   // can be all-keyed or mixed
+   const patchKeyedChildren = (
+    c1,
+    c2,
+    container,
+    parentAnchor,
+    parentComponent,
+    parentSuspense,
+    isSVG: boolean,
+    slotScopeIds: string[] | null,
+    optimized: boolean
+  ) => {
+    let i = 0
+    const l2 = c2.length
+    let e1 = c1.length - 1 // prev ending index
+    let e2 = l2 - 1 // next ending index
+    
+    // 1. sync from start
+    // (a b) c
+    // (a b) d e
+    // 从前面开始比对
+    while( i <= e1 && i <= e2){
+      const n1 = c1[i]
+      const n2 = (c2[i] = optimized
+        ? cloneIfMounted(c2[i])
+        : normalizeVNode(c2[i]))
+      if (isSameVNodeType(n1, n2)) {
+        patch(
+          n1,
+          n2,
+          container,
+          null,
+          parentComponent,
+          parentSuspense,
+          isSVG,
+          slotScopeIds,
+          optimized
+        )
+      } else {
+        break
+      }
+      i++
+    }
+
+    // 2. sync from end
+    // a (b c)
+    // d e (b c)
+    while (i <= e1 && i <= e2) {
+      const n1 = c1[e1]
+      const n2 = (c2[e2] = optimized
+        ? cloneIfMounted(c2[e2])
+        : normalizeVNode(c2[e2]))
+      if (isSameVNodeType(n1, n2)) {
+        patch(
+          n1,
+          n2,
+          container,
+          null,
+          parentComponent,
+          parentSuspense,
+          isSVG,
+          slotScopeIds,
+          optimized
+        )
+      } else {
+        break
+      }
+      e1--
+      e2--
+    }
+
+    // 3. common sequence + mount
+    // (a b)
+    // (a b) c
+    // i = 2, e1 = 1, e2 = 2
+    // (a b)
+    // c (a b)
+    // i = 0, e1 = -1, e2 = 0
+    // 归纳得出结论 完美情况 新节点与旧节点比对相同 新节点要多(无论多在前后) 使用i > e1判断
+    // 都要去取i至e2处进行挂载
+    if (i > e1) {
+      if (i <= e2) {
+        const nextPos = e2 + 1
+        // 因为要将新节点进行插入 第二种情况nextPos一定小于新子节点的总长 这样可以取到c旁的a 以a为基准进行插入  反之第一种右侧一定为空
+        const anchor = nextPos < l2 ? (c2[nextPos]).el : parentAnchor
+        while (i <= e2) {
+          patch(
+            null,
+            (c2[i] = optimized
+              ? cloneIfMounted(c2[i] as VNode)
+              : normalizeVNode(c2[i])),
+            container,
+            anchor,
+            parentComponent,
+            parentSuspense,
+            isSVG,
+            slotScopeIds,
+            optimized
+          )
+          i++
+        }
+      }
+    }
+
+    // 4. common sequence + unmount
+    // (a b) c
+    // (a b)
+    // i = 2, e1 = 2, e2 = 1
+    // a (b c)
+    // (b c)
+    // i = 0, e1 = 0, e2 = -1
+    // 归纳得出结论 完美情况 新节点与旧节点比对相同 旧节点要多(无论多在前后) 使用i > e2判断
+    // 都要去取i至e1处进行卸载
+    else if (i > e2) {
+      while (i <= e1) {
+        unmount(c1[i], parentComponent, parentSuspense, true)
+        i++
+      }
+    }
+
+    // 5. unknown sequence
+    // [i ... e1 + 1]: a b [c d e] f g
+    // [i ... e2 + 1]: a b [e d c h] f g
+    // i = 2, e1 = 4, e2 = 5
+    // 乱序对比
+
+  }
+
+  const patchProps = (
+    el,
+    vnode,
+    oldProps,
+    newProps,
+    parentComponent,
+    parentSuspense,
+    isSVG: boolean
+  ) => {
+    if (oldProps !== newProps) {
+      for (const key in newProps) {
+        // empty string is not valid prop
+        if (isReservedProp(key)) continue
+        const next = newProps[key]
+        const prev = oldProps[key]
+        // defer patching value
+        // 对比props class style attrs event相关  
+        if (next !== prev && key !== 'value') {
+          hostPatchProp(
+            el,
+            key,
+            prev,
+            next,
+            isSVG,
+            vnode.children as VNode[],
+            parentComponent,
+            parentSuspense,
+            unmountChildren
+          )
+        }
+      }
+      // 移除旧节点未在新节点中的属性
+      if (oldProps !== EMPTY_OBJ) {
+        for (const key in oldProps) {
+          if (!isReservedProp(key) && !(key in newProps)) {
+            hostPatchProp(
+              el,
+              key,
+              oldProps[key],
+              null,
+              isSVG,
+              vnode.children as VNode[],
+              parentComponent,
+              parentSuspense,
+              unmountChildren
+            )
+          }
+        }
+      }
+      if ('value' in newProps) {
+        hostPatchProp(el, 'value', oldProps.value, newProps.value)
+      }
+    }
+
+  }
+
+  const processText = (n1, n2, container, anchor) => {
+    if (n1 == null) {
+      hostInsert(
+        (n2.el = hostCreateText(n2.children as string)),
+        container,
+        anchor
+      )
+    } else {
+      const el = (n2.el = n1.el!)
+      if (n2.children !== n1.children) {
+        hostSetText(el, n2.children as string)
+      }
+    }
+  }
+
+  const processElement = (
+    n1: VNode | null,
+    n2: VNode,
+    container,
+    anchor,
+    parentComponent,
+    parentSuspense,
+    isSVG: boolean,
+    slotScopeIds: string[] | null,
+    optimized: boolean
+  ) => {
+    isSVG = isSVG || (n2.type as string) === 'svg'
+    if (n1 == null) {
+      mountElement(
+        n2,
+        container,
+        anchor,
+        parentComponent,
+        parentSuspense,
+        isSVG,
+        slotScopeIds,
+        optimized
+      )
+    } else {
+      patchElement(
+        n1,
+        n2,
+        parentComponent,
+        parentSuspense,
+        isSVG,
+        slotScopeIds,
+        optimized
+      )
+    }
+  }
+
   const processComponent = (
     n1: VNode | null,
     n2: VNode,
@@ -329,6 +548,107 @@ function baseCreateRenderer(options: any, createHydrationFns?: any) {
     }
   }
 
+  const mountElement = (
+    vnode: VNode,
+    container,
+    anchor,
+    parentComponent,
+    parentSuspense,
+    isSVG: boolean,
+    slotScopeIds: string[] | null,
+    optimized: boolean
+  ) => {
+    let el
+    let vnodeHook
+    const { type, props, shapeFlag } = vnode
+    // if (
+    //   !__DEV__ &&
+    //   vnode.el &&
+    //   hostCloneNode !== undefined &&
+    //   patchFlag === PatchFlags.HOISTED
+    // ) {
+    //   // If a vnode has non-null el, it means it's being reused.
+    //   // Only static vnodes can be reused, so its mounted DOM nodes should be
+    //   // exactly the same, and we can simply do a clone here.
+    //   // only do this in production since cloned trees cannot be HMR updated.
+    //   el = vnode.el = hostCloneNode(vnode.el)
+    // }else{
+    // 创建当前空白节点并将创建的节点挂载到vnode的el属性上 以便更新时做diff
+    el = vnode.el = hostCreateElement(
+      vnode.type as string,
+      isSVG,
+      props && props.is,
+      props
+    )
+    // 在vnode处理时 将当前节点与孩子类型做了 | 运算 
+    // 此时验证当前节点孩子为文本节点 使用 & 运算
+    if (shapeFlag & ShapeFlags.TEXT_CHILDREN) {
+      hostSetElementText(el, vnode.children as string)
+    } else if (shapeFlag & ShapeFlags.ARRAY_CHILDREN) {
+      // 如果孩子节点为数组时
+      mountChildren(
+        vnode.children,
+        el,
+        null,
+        parentComponent,
+        parentSuspense,
+        isSVG && type !== 'foreignObject',
+        slotScopeIds,
+        optimized
+      )
+    }
+    if (props) {
+      for (const key in props) {
+        if (key !== 'value' && !isReservedProp(key)) {
+          hostPatchProp(
+            el,
+            key,
+            null,
+            props[key],
+            isSVG,
+            vnode.children as VNode[],
+            parentComponent,
+            parentSuspense,
+            unmountChildren
+          )
+        }
+      }
+
+      if ('value' in props) {
+        hostPatchProp(el, 'value', null, props.value)
+      }
+    }
+    // }
+    hostInsert(el, container, anchor)
+  }
+
+  const mountChildren = (
+    children,
+    container,
+    anchor,
+    parentComponent,
+    parentSuspense,
+    isSVG,
+    slotScopeIds,
+    optimized,
+    start = 0
+  ) => {
+    for (let i = start; i < children.length; i++) {
+      const child = (children[i] = normalizeVNode(children[i]))
+      patch(
+        null,
+        child,
+        container,
+        anchor,
+        parentComponent,
+        parentSuspense,
+        isSVG,
+        slotScopeIds,
+        optimized
+      )
+    }
+  }
+
   const mountComponent = (
     initialVNode,
     container,
@@ -362,7 +682,7 @@ function baseCreateRenderer(options: any, createHydrationFns?: any) {
     if (vnode == null) {
       if (container._vnode) {
         // 卸载节点
-        // unmount(container._vnode, null, null, true)
+        unmount(container._vnode, null, null, true)
       }
     } else {
       // 初次simple情况
@@ -372,7 +692,54 @@ function baseCreateRenderer(options: any, createHydrationFns?: any) {
       patch(container._vnode || null, vnode, container, null, null, null, isSVG)
     }
     // flushPostFlushCbs()
-    // container._vnode = vnode
+    container._vnode = vnode
+  }
+
+  const unmountChildren = (
+    children,
+    parentComponent,
+    parentSuspense,
+    doRemove = false,
+    optimized = false,
+    start = 0
+  ) => {
+    for (let i = start; i < children.length; i++) {
+      unmount(children[i], parentComponent, parentSuspense, doRemove, optimized)
+    }
+  }
+
+  const unmount = (
+    vnode,
+    parentComponent,
+    parentSuspense,
+    doRemove = false,
+    optimized = false
+  ) => {
+    // const {
+    //   type,
+    //   props,
+    //   ref,
+    //   children,
+    //   dynamicChildren,
+    //   shapeFlag,
+    //   patchFlag,
+    //   dirs
+    // } = vnode
+    if (doRemove) {
+      remove(vnode)
+    }
+  }
+
+  const remove = vnode => {
+    const { type, el, anchor } = vnode
+    const performRemove = () => {
+      hostRemove(el!)
+    }
+    performRemove()
+  }
+
+  const getNextHostNode = vnode => {
+    return hostNextSibling((vnode.anchor || vnode.el)!)
   }
 
   return {

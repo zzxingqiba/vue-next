@@ -6,7 +6,7 @@ const templateContainer = doc && /*#__PURE__*/ doc.createElement('template')
 
 export const nodeOps = {
   insert: (child, parent, anchor) => {
-    parent.insertBefore(child, anchor || null)
+    parent.insertBefore(child, anchor || null) // null相当于appendChild
   },
 
   remove: child => {

@@ -3,6 +3,7 @@ export * from './typeUtils'
 export * from './shapeFlags'
 export * from './patchFlags'
 export * from './normalizeProp'
+export * from './domAttrConfig'
 
 
 export { makeMap };

@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Document</title>
+</head>
+
+<body>
+  <script src="./vue.global.js"></script>
+  <div id="app"></div>
+  <script>
+    const { h, render } = Vue
+    const app = document.getElementById('app')
+    render(h('div', [
+      h('span', {key: 'A'}, 'A'),
+      h('span', {key: 'B'}, 'B'),
+      h('span', {key: 'C'}, 'C'),
+      h('span', {key: 'D'}, 'D'),
+      h('span', {key: 'E'}, 'E'),
+      h('span', {key: 'F'}, 'F'),
+      h('span', {key: 'G'}, 'G'),
+    ]), app)
+    setTimeout(()=>{
+      render(h('div', [
+        h('span', {key: 'A'}, 'A'),
+        h('span', {key: 'B'}, 'B'),
+        h('span', {key: 'E'}, 'E'),
+        h('span', {key: 'D'}, 'D'),
+        h('span', {key: 'C'}, 'C'),
+        h('span', {key: 'H'}, 'H'),
+        h('span', {key: 'F'}, 'F'),
+        h('span', {key: 'G'}, 'G'),
+      ]), app)
+    },5000)
+  </script>
+</body>
+
+</html>

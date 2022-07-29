@@ -1,4 +1,5 @@
-dist
+*.global.js
+*.global.js.map
 .DS_Store
 node_modules
 coverage

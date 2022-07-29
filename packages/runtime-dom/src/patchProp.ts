@@ -1,13 +1,14 @@
 import { patchClass } from './modules/class'
 import { patchStyle } from './modules/style'
-// import { patchAttr } from './modules/attrs'
-// import { patchDOMProp } from './modules/props'
+import { patchAttr } from './modules/attrs'
+import { patchDOMProp } from './modules/props'
 import { patchEvent } from './modules/events'
 import { isOn, isString, isFunction, isModelListener } from '@vue/shared'
 
 const nativeOnRE = /^on[a-z]/
 
-export const patchProp = (el,
+export const patchProp = (
+  el,
   key,
   prevValue,
   nextValue,
@@ -15,7 +16,8 @@ export const patchProp = (el,
   prevChildren,
   parentComponent,
   parentSuspense,
-  unmountChildren) => {
+  unmountChildren
+  ) => {
   if (key === 'class') {
     patchClass(el, nextValue, isSVG)
   } else if (key === 'style') {
@@ -26,34 +28,35 @@ export const patchProp = (el,
       patchEvent(el, key, prevValue, nextValue, parentComponent)
     }
   } 
-  // else if (
-  //   key[0] === '.'
-  //     ? ((key = key.slice(1)), true)
-  //     : key[0] === '^'
-  //     ? ((key = key.slice(1)), false)
-  //     : shouldSetAsProp(el, key, nextValue, isSVG)
-  // ) {
-  //   patchDOMProp(
-  //     el,
-  //     key,
-  //     nextValue,
-  //     prevChildren,
-  //     parentComponent,
-  //     parentSuspense,
-  //     unmountChildren
-  //   )
-  // } else {
-  //   // special case for <input v-model type="checkbox"> with
-  //   // :true-value & :false-value
-  //   // store value as dom properties since non-string values will be
-  //   // stringified.
-  //   if (key === 'true-value') {
-  //     ;(el as any)._trueValue = nextValue
-  //   } else if (key === 'false-value') {
-  //     ;(el as any)._falseValue = nextValue
-  //   }
-  //   patchAttr(el, key, nextValue, isSVG, parentComponent)
-  // }
+  else if (
+    key[0] === '.'
+      ? ((key = key.slice(1)), true)
+      : key[0] === '^'
+      ? ((key = key.slice(1)), false)
+      : shouldSetAsProp(el, key, nextValue, isSVG)
+  ) {
+    // 如果是DOM属性
+    patchDOMProp(
+      el,
+      key,
+      nextValue,
+      prevChildren,
+      parentComponent,
+      parentSuspense,
+      unmountChildren
+    )
+  } else {
+    // special case for <input v-model type="checkbox"> with
+    // :true-value & :false-value
+    // store value as dom properties since non-string values will be
+    // stringified.
+    if (key === 'true-value') {
+      ;(el as any)._trueValue = nextValue
+    } else if (key === 'false-value') {
+      ;(el as any)._falseValue = nextValue
+    }
+    patchAttr(el, key, nextValue, isSVG, parentComponent)
+  }
 }
 
 function shouldSetAsProp(
