@@ -7,17 +7,19 @@ import {
   Static,
   normalizeVNode,
   cloneIfMounted,
-} from './vnode'
+} from "./vnode";
 import {
   EMPTY_OBJ,
   isReservedProp,
-  NOOP, PatchFlags, ShapeFlags,
+  NOOP,
+  PatchFlags,
+  ShapeFlags,
 } from "@vue/shared";
-import { createAppAPI } from './apiCreateApp'
-import { createComponentInstance, setupComponent } from './component';
+import { createAppAPI } from "./apiCreateApp";
+import { createComponentInstance, setupComponent } from "./component";
 
 export function createRenderer(options: any) {
-  return baseCreateRenderer(options)
+  return baseCreateRenderer(options);
 }
 
 function baseCreateRenderer(options: any, createHydrationFns?: any) {
@@ -35,8 +37,8 @@ function baseCreateRenderer(options: any, createHydrationFns?: any) {
     nextSibling: hostNextSibling,
     setScopeId: hostSetScopeId = NOOP,
     cloneNode: hostCloneNode,
-    insertStaticContent: hostInsertStaticContent
-  } = options
+    insertStaticContent: hostInsertStaticContent,
+  } = options;
 
   const patch = (
     n1,
@@ -50,33 +52,33 @@ function baseCreateRenderer(options: any, createHydrationFns?: any) {
     optimized = !!n2.dynamicChildren
   ) => {
     if (n1 === n2) {
-      return
+      return;
     }
     // patching & not same type, unmount old tree
-    // 旧节点存在  新旧节点不一致  移除旧节点 置为null 就会走挂载逻辑生成新的节点   
+    // 旧节点存在  新旧节点不一致  移除旧节点 置为null 就会走挂载逻辑生成新的节点
     if (n1 && !isSameVNodeType(n1, n2)) {
-      anchor = getNextHostNode(n1)
-      unmount(n1, parentComponent, parentSuspense, true)
-      n1 = null
+      anchor = getNextHostNode(n1);
+      unmount(n1, parentComponent, parentSuspense, true);
+      n1 = null;
     }
     // ##未知 diff优化
     if (n2.patchFlag === PatchFlags.BAIL) {
-      optimized = false
-      n2.dynamicChildren = null
+      optimized = false;
+      n2.dynamicChildren = null;
     }
-    const { type, ref, shapeFlag } = n2
+    const { type, ref, shapeFlag } = n2;
     switch (type) {
       case Text:
-        processText(n1, n2, container, anchor)
-        break
+        processText(n1, n2, container, anchor);
+        break;
       case Comment:
         // processCommentNode(n1, n2, container, anchor)
-        break
+        break;
       case Static:
         // if (n1 == null) {
         //   mountStaticNode(n2, container, anchor, isSVG)
-        // } 
-        break
+        // }
+        break;
       case Fragment:
         // processFragment(
         //   n1,
@@ -89,7 +91,7 @@ function baseCreateRenderer(options: any, createHydrationFns?: any) {
         //   slotScopeIds,
         //   optimized
         // )
-        break
+        break;
       default:
         if (shapeFlag & ShapeFlags.ELEMENT) {
           processElement(
@@ -102,7 +104,7 @@ function baseCreateRenderer(options: any, createHydrationFns?: any) {
             isSVG,
             slotScopeIds,
             optimized
-          )
+          );
         } else if (shapeFlag & ShapeFlags.COMPONENT) {
           // processComponent(
           //   n1,
@@ -144,7 +146,7 @@ function baseCreateRenderer(options: any, createHydrationFns?: any) {
       //   )
       // }
     }
-  }
+  };
 
   const patchElement = (
     n1: VNode,
@@ -155,11 +157,11 @@ function baseCreateRenderer(options: any, createHydrationFns?: any) {
     slotScopeIds: string[] | null,
     optimized: boolean
   ) => {
-    const el = (n2.el = n1.el!)
+    const el = (n2.el = n1.el!);
 
-    const oldProps = n1.props || EMPTY_OBJ
-    const newProps = n2.props || EMPTY_OBJ
-    const areChildrenSVG = isSVG && n2.type !== 'foreignObject'
+    const oldProps = n1.props || EMPTY_OBJ;
+    const newProps = n2.props || EMPTY_OBJ;
+    const areChildrenSVG = isSVG && n2.type !== "foreignObject";
     // full diff
     // 比较并更新孩子节点 全量diff
     patchChildren(
@@ -172,7 +174,7 @@ function baseCreateRenderer(options: any, createHydrationFns?: any) {
       areChildrenSVG,
       slotScopeIds,
       false
-    )
+    );
 
     // unoptimized, full diff
     // 比较并更新属性 未优化 全量diff
@@ -184,8 +186,8 @@ function baseCreateRenderer(options: any, createHydrationFns?: any) {
       parentComponent,
       parentSuspense,
       isSVG
-    )
-  }
+    );
+  };
 
   const patchChildren = (
     n1,
@@ -198,19 +200,19 @@ function baseCreateRenderer(options: any, createHydrationFns?: any) {
     slotScopeIds,
     optimized = false
   ) => {
-    const c1 = n1 && n1.children
-    const prevShapeFlag = n1 ? n1.shapeFlag : 0
-    const c2 = n2.children
-    const { patchFlag, shapeFlag } = n2
+    const c1 = n1 && n1.children;
+    const prevShapeFlag = n1 ? n1.shapeFlag : 0;
+    const c2 = n2.children;
+    const { patchFlag, shapeFlag } = n2;
 
     // children has 3 possibilities: text, array or no children.
     // 新旧子节点出现可能为 (空、数组、文本) 9种情况
     //✅  pos        旧         新          操作
-    //✅   1         文本       空          清空                  
-    //✅   2         文本       文本        对比 不同则设置文本     
+    //✅   1         文本       空          清空
+    //✅   2         文本       文本        对比 不同则设置文本
     //✅   3         文本       数组        清空 创建节点
     //✅   4         数组       空          卸载旧节点
-    //✅   5         数组       文本        卸载旧节点 设置文本 
+    //✅   5         数组       文本        卸载旧节点 设置文本
     //✅   6         数组       数组        diff
     //✅   7         空         空          忽略
     //✅   8         空         文本        设置文本
@@ -220,11 +222,11 @@ function baseCreateRenderer(options: any, createHydrationFns?: any) {
     if (shapeFlag & ShapeFlags.TEXT_CHILDREN) {
       // 5 (进行了一部优化 普通的并未遍历删除 而是直接走了hostSetElementText替换为文字 也达到删除效果)
       if (prevShapeFlag & ShapeFlags.ARRAY_CHILDREN) {
-        unmountChildren(c1, parentComponent, parentSuspense)
+        unmountChildren(c1, parentComponent, parentSuspense);
       }
       // 2 5 8
       if (c1 != c2) {
-        hostSetElementText(container, c2 as string)
+        hostSetElementText(container, c2 as string);
       }
     }
     // 新节点为空或数组
@@ -244,11 +246,11 @@ function baseCreateRenderer(options: any, createHydrationFns?: any) {
             isSVG,
             slotScopeIds,
             optimized
-          )
+          );
         } else {
           // no new children, just unmount old
           // 4
-          unmountChildren(c1 as VNode[], parentComponent, parentSuspense, true)
+          unmountChildren(c1 as VNode[], parentComponent, parentSuspense, true);
         }
       }
       // 1 3 7(忽略) 9
@@ -256,7 +258,7 @@ function baseCreateRenderer(options: any, createHydrationFns?: any) {
       else {
         // 1 3
         if (prevShapeFlag & ShapeFlags.TEXT_CHILDREN) {
-          hostSetElementText(container, '')
+          hostSetElementText(container, "");
         }
         // 3 9
         // mount new if array
@@ -270,14 +272,14 @@ function baseCreateRenderer(options: any, createHydrationFns?: any) {
             isSVG,
             slotScopeIds,
             optimized
-          )
+          );
         }
       }
     }
-  }
+  };
 
-   // can be all-keyed or mixed
-   const patchKeyedChildren = (
+  // can be all-keyed or mixed
+  const patchKeyedChildren = (
     c1,
     c2,
     container,
@@ -288,20 +290,20 @@ function baseCreateRenderer(options: any, createHydrationFns?: any) {
     slotScopeIds: string[] | null,
     optimized: boolean
   ) => {
-    let i = 0
-    const l2 = c2.length
-    let e1 = c1.length - 1 // prev ending index
-    let e2 = l2 - 1 // next ending index
-    
+    let i = 0;
+    const l2 = c2.length;
+    let e1 = c1.length - 1; // prev ending index
+    let e2 = l2 - 1; // next ending index
+
     // 1. sync from start
     // (a b) c
     // (a b) d e
     // 从前面开始比对
-    while( i <= e1 && i <= e2){
-      const n1 = c1[i]
+    while (i <= e1 && i <= e2) {
+      const n1 = c1[i];
       const n2 = (c2[i] = optimized
         ? cloneIfMounted(c2[i])
-        : normalizeVNode(c2[i]))
+        : normalizeVNode(c2[i]));
       if (isSameVNodeType(n1, n2)) {
         patch(
           n1,
@@ -313,21 +315,22 @@ function baseCreateRenderer(options: any, createHydrationFns?: any) {
           isSVG,
           slotScopeIds,
           optimized
-        )
+        );
       } else {
-        break
+        break;
       }
-      i++
+      i++;
     }
 
     // 2. sync from end
     // a (b c)
     // d e (b c)
+    // 从后面开始比对
     while (i <= e1 && i <= e2) {
-      const n1 = c1[e1]
+      const n1 = c1[e1];
       const n2 = (c2[e2] = optimized
         ? cloneIfMounted(c2[e2])
-        : normalizeVNode(c2[e2]))
+        : normalizeVNode(c2[e2]));
       if (isSameVNodeType(n1, n2)) {
         patch(
           n1,
@@ -339,12 +342,12 @@ function baseCreateRenderer(options: any, createHydrationFns?: any) {
           isSVG,
           slotScopeIds,
           optimized
-        )
+        );
       } else {
-        break
+        break;
       }
-      e1--
-      e2--
+      e1--;
+      e2--;
     }
 
     // 3. common sequence + mount
@@ -358,9 +361,9 @@ function baseCreateRenderer(options: any, createHydrationFns?: any) {
     // 都要去取i至e2处进行挂载
     if (i > e1) {
       if (i <= e2) {
-        const nextPos = e2 + 1
+        const nextPos = e2 + 1;
         // 因为要将新节点进行插入 第二种情况nextPos一定小于新子节点的总长 这样可以取到c旁的a 以a为基准进行插入  反之第一种右侧一定为空
-        const anchor = nextPos < l2 ? (c2[nextPos]).el : parentAnchor
+        const anchor = nextPos < l2 ? c2[nextPos].el : parentAnchor;
         while (i <= e2) {
           patch(
             null,
@@ -374,8 +377,8 @@ function baseCreateRenderer(options: any, createHydrationFns?: any) {
             isSVG,
             slotScopeIds,
             optimized
-          )
-          i++
+          );
+          i++;
         }
       }
     }
@@ -391,8 +394,8 @@ function baseCreateRenderer(options: any, createHydrationFns?: any) {
     // 都要去取i至e1处进行卸载
     else if (i > e2) {
       while (i <= e1) {
-        unmount(c1[i], parentComponent, parentSuspense, true)
-        i++
+        unmount(c1[i], parentComponent, parentSuspense, true);
+        i++;
       }
     }
 
@@ -401,8 +404,43 @@ function baseCreateRenderer(options: any, createHydrationFns?: any) {
     // [i ... e2 + 1]: a b [e d c h] f g
     // i = 2, e1 = 4, e2 = 5
     // 乱序对比
+    let s1 = i;
+    let s2 = i;
+    const keyToNewIndexMap = new Map();
+    // 新节点建立key key  value index的映射关系
+    for (let i = s2; i <= e2; i++) {
+      keyToNewIndexMap.set(c2[i].key, i);
+    }
 
-  }
+    const toBePatch = e2 - s2 + 1; // 新节点总个数
+    const newIndexToOldIndexMap = new Array(toBePatch).fill(0); // 长度为新节点个数 记录值为旧节点索引+1  目的为判断是否比对过 未比对过则是新增 为0
+
+    // 循环旧元素 看一下新的里边是否存在 不存在则删除 存在则对比
+    for (let i = s1; i <= e1; i++) {
+      const oldChild = c1[i]; // 旧节点
+      let newIndex = keyToNewIndexMap.get(oldChild.key);
+      if (newIndex) {
+        newIndexToOldIndexMap[newIndex - s2] = i + 1;
+        patch(oldChild, c2[newIndex], container);
+      } else {
+        unmount(oldChild, parentComponent, parentSuspense, true);
+      }
+    }
+
+    // 需移动位置  上面只是比对而已  实际的vonde的el并没有移动
+    // 倒序遍历 以便插入 遍历节点长度次数即可 初始值应为长度-1 代表索引
+    for (let i = toBePatch - 1; i >= 0; i--) {
+      let index = i + s2; // 新节点索引位置  长度所在位置 + s2
+      let current = c2[index]; // 当前节点
+      let anchor = index + 1 < c2.length ? c2[index + 1].el : null; // 找到参照节点 没找到则是appendChild 找到插在前面
+      if (newIndexToOldIndexMap[i] == 0) {
+        patch(null, current, container, anchor);
+      } else {
+        // 比对完 vode一定有el了
+        hostInsert(current.el, container, anchor);
+      }
+    }
+  };
 
   const patchProps = (
     el,
@@ -416,12 +454,12 @@ function baseCreateRenderer(options: any, createHydrationFns?: any) {
     if (oldProps !== newProps) {
       for (const key in newProps) {
         // empty string is not valid prop
-        if (isReservedProp(key)) continue
-        const next = newProps[key]
-        const prev = oldProps[key]
+        if (isReservedProp(key)) continue;
+        const next = newProps[key];
+        const prev = oldProps[key];
         // defer patching value
-        // 对比props class style attrs event相关  
-        if (next !== prev && key !== 'value') {
+        // 对比props class style attrs event相关
+        if (next !== prev && key !== "value") {
           hostPatchProp(
             el,
             key,
@@ -432,7 +470,7 @@ function baseCreateRenderer(options: any, createHydrationFns?: any) {
             parentComponent,
             parentSuspense,
             unmountChildren
-          )
+          );
         }
       }
       // 移除旧节点未在新节点中的属性
@@ -449,16 +487,15 @@ function baseCreateRenderer(options: any, createHydrationFns?: any) {
               parentComponent,
               parentSuspense,
               unmountChildren
-            )
+            );
           }
         }
       }
-      if ('value' in newProps) {
-        hostPatchProp(el, 'value', oldProps.value, newProps.value)
+      if ("value" in newProps) {
+        hostPatchProp(el, "value", oldProps.value, newProps.value);
       }
     }
-
-  }
+  };
 
   const processText = (n1, n2, container, anchor) => {
     if (n1 == null) {
@@ -466,14 +503,14 @@ function baseCreateRenderer(options: any, createHydrationFns?: any) {
         (n2.el = hostCreateText(n2.children as string)),
         container,
         anchor
-      )
+      );
     } else {
-      const el = (n2.el = n1.el!)
+      const el = (n2.el = n1.el!);
       if (n2.children !== n1.children) {
-        hostSetText(el, n2.children as string)
+        hostSetText(el, n2.children as string);
       }
     }
-  }
+  };
 
   const processElement = (
     n1: VNode | null,
@@ -486,7 +523,7 @@ function baseCreateRenderer(options: any, createHydrationFns?: any) {
     slotScopeIds: string[] | null,
     optimized: boolean
   ) => {
-    isSVG = isSVG || (n2.type as string) === 'svg'
+    isSVG = isSVG || (n2.type as string) === "svg";
     if (n1 == null) {
       mountElement(
         n2,
@@ -497,7 +534,7 @@ function baseCreateRenderer(options: any, createHydrationFns?: any) {
         isSVG,
         slotScopeIds,
         optimized
-      )
+      );
     } else {
       patchElement(
         n1,
@@ -507,9 +544,9 @@ function baseCreateRenderer(options: any, createHydrationFns?: any) {
         isSVG,
         slotScopeIds,
         optimized
-      )
+      );
     }
-  }
+  };
 
   const processComponent = (
     n1: VNode | null,
@@ -522,7 +559,7 @@ function baseCreateRenderer(options: any, createHydrationFns?: any) {
     slotScopeIds: string[] | null,
     optimized: boolean
   ) => {
-    n2.slotScopeIds = slotScopeIds
+    n2.slotScopeIds = slotScopeIds;
     if (n1 == null) {
       if (n2.shapeFlag & ShapeFlags.COMPONENT_KEPT_ALIVE) {
         // ;(parentComponent!.ctx as KeepAliveContext).activate(
@@ -541,12 +578,12 @@ function baseCreateRenderer(options: any, createHydrationFns?: any) {
           parentSuspense,
           isSVG,
           optimized
-        )
+        );
       }
     } else {
       // updateComponent(n1, n2, optimized)
     }
-  }
+  };
 
   const mountElement = (
     vnode: VNode,
@@ -558,9 +595,9 @@ function baseCreateRenderer(options: any, createHydrationFns?: any) {
     slotScopeIds: string[] | null,
     optimized: boolean
   ) => {
-    let el
-    let vnodeHook
-    const { type, props, shapeFlag } = vnode
+    let el;
+    let vnodeHook;
+    const { type, props, shapeFlag } = vnode;
     // if (
     //   !__DEV__ &&
     //   vnode.el &&
@@ -579,11 +616,11 @@ function baseCreateRenderer(options: any, createHydrationFns?: any) {
       isSVG,
       props && props.is,
       props
-    )
-    // 在vnode处理时 将当前节点与孩子类型做了 | 运算 
+    );
+    // 在vnode处理时 将当前节点与孩子类型做了 | 运算
     // 此时验证当前节点孩子为文本节点 使用 & 运算
     if (shapeFlag & ShapeFlags.TEXT_CHILDREN) {
-      hostSetElementText(el, vnode.children as string)
+      hostSetElementText(el, vnode.children as string);
     } else if (shapeFlag & ShapeFlags.ARRAY_CHILDREN) {
       // 如果孩子节点为数组时
       mountChildren(
@@ -592,14 +629,14 @@ function baseCreateRenderer(options: any, createHydrationFns?: any) {
         null,
         parentComponent,
         parentSuspense,
-        isSVG && type !== 'foreignObject',
+        isSVG && type !== "foreignObject",
         slotScopeIds,
         optimized
-      )
+      );
     }
     if (props) {
       for (const key in props) {
-        if (key !== 'value' && !isReservedProp(key)) {
+        if (key !== "value" && !isReservedProp(key)) {
           hostPatchProp(
             el,
             key,
@@ -610,17 +647,17 @@ function baseCreateRenderer(options: any, createHydrationFns?: any) {
             parentComponent,
             parentSuspense,
             unmountChildren
-          )
+          );
         }
       }
 
-      if ('value' in props) {
-        hostPatchProp(el, 'value', null, props.value)
+      if ("value" in props) {
+        hostPatchProp(el, "value", null, props.value);
       }
     }
     // }
-    hostInsert(el, container, anchor)
-  }
+    hostInsert(el, container, anchor);
+  };
 
   const mountChildren = (
     children,
@@ -634,7 +671,7 @@ function baseCreateRenderer(options: any, createHydrationFns?: any) {
     start = 0
   ) => {
     for (let i = start; i < children.length; i++) {
-      const child = (children[i] = normalizeVNode(children[i]))
+      const child = (children[i] = normalizeVNode(children[i]));
       patch(
         null,
         child,
@@ -645,9 +682,9 @@ function baseCreateRenderer(options: any, createHydrationFns?: any) {
         isSVG,
         slotScopeIds,
         optimized
-      )
+      );
     }
-  }
+  };
 
   const mountComponent = (
     initialVNode,
@@ -658,14 +695,13 @@ function baseCreateRenderer(options: any, createHydrationFns?: any) {
     isSVG,
     optimized
   ) => {
-    const instance =
-      (initialVNode.component = createComponentInstance(
-        initialVNode,
-        parentComponent,
-        parentSuspense
-      ))
+    const instance = (initialVNode.component = createComponentInstance(
+      initialVNode,
+      parentComponent,
+      parentSuspense
+    ));
 
-    setupComponent(instance)
+    setupComponent(instance);
 
     // setupRenderEffect(
     //   instance,
@@ -676,24 +712,32 @@ function baseCreateRenderer(options: any, createHydrationFns?: any) {
     //   isSVG,
     //   optimized
     // )
-  }
+  };
 
   const render = (vnode, container, isSVG) => {
     if (vnode == null) {
       if (container._vnode) {
         // 卸载节点
-        unmount(container._vnode, null, null, true)
+        unmount(container._vnode, null, null, true);
       }
     } else {
       // 初次simple情况
       // container._vnode null
       // vnode { ...乱七八糟 }
       // container 经外层mount()处理过的挂载根节点
-      patch(container._vnode || null, vnode, container, null, null, null, isSVG)
+      patch(
+        container._vnode || null,
+        vnode,
+        container,
+        null,
+        null,
+        null,
+        isSVG
+      );
     }
     // flushPostFlushCbs()
-    container._vnode = vnode
-  }
+    container._vnode = vnode;
+  };
 
   const unmountChildren = (
     children,
@@ -704,9 +748,15 @@ function baseCreateRenderer(options: any, createHydrationFns?: any) {
     start = 0
   ) => {
     for (let i = start; i < children.length; i++) {
-      unmount(children[i], parentComponent, parentSuspense, doRemove, optimized)
+      unmount(
+        children[i],
+        parentComponent,
+        parentSuspense,
+        doRemove,
+        optimized
+      );
     }
-  }
+  };
 
   const unmount = (
     vnode,
@@ -726,25 +776,25 @@ function baseCreateRenderer(options: any, createHydrationFns?: any) {
     //   dirs
     // } = vnode
     if (doRemove) {
-      remove(vnode)
+      remove(vnode);
     }
-  }
+  };
 
-  const remove = vnode => {
-    const { type, el, anchor } = vnode
+  const remove = (vnode) => {
+    const { type, el, anchor } = vnode;
     const performRemove = () => {
-      hostRemove(el!)
-    }
-    performRemove()
-  }
+      hostRemove(el!);
+    };
+    performRemove();
+  };
 
-  const getNextHostNode = vnode => {
-    return hostNextSibling((vnode.anchor || vnode.el)!)
-  }
+  const getNextHostNode = (vnode) => {
+    return hostNextSibling((vnode.anchor || vnode.el)!);
+  };
 
   return {
     render,
     hydrate: undefined,
-    createApp: createAppAPI(render, undefined)
-  }
+    createApp: createAppAPI(render, undefined),
+  };
 }
