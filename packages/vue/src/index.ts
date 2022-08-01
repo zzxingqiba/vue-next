@@ -24,7 +24,6 @@ function compileToFunction(
     const el = document.querySelector(template)
     template = el ? el.innerHTML : ``
   }
-  debugger
   // const { code } = 
   compile(
     template,

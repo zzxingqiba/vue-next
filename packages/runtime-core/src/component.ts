@@ -80,15 +80,14 @@ export function finishComponentSetup(
           ),
           componentCompilerOptions
         )
-
         Component.render = compile(template, finalCompilerOptions)
       }
 
       instance.render = (Component.render || NOOP)
 
-      if (installWithProxy) {
-        installWithProxy(instance)
-      }
+      // if (installWithProxy) {
+      //   installWithProxy(instance)
+      // }
     }
   }
 }

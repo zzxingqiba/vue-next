@@ -10,31 +10,12 @@
 
 <body>
   <script src="./vue.global.js"></script>
-  <div id="app"></div>
+  <div id="app">222</div>
   <script>
-    const { h, render } = Vue
-    const app = document.getElementById('app')
-    render(h('div', [
-      h('span', { key: 'A' }, 'A'),
-      h('span', { key: 'B' }, 'B'),
-      h('span', { key: 'E' }, 'E'),
-      h('span', { key: 'C' }, 'C'),
-      h('span', { key: 'D' }, 'D'),
-      h('span', { key: 'H' }, 'H'),
-      h('span', { key: 'F' }, 'F'),
-      h('span', { key: 'G' }, 'G'),
-    ]), app)
-    setTimeout(() => {
-      render(h('div', [
-        h('span', { key: 'A' }, 'A'),
-        h('span', { key: 'B' }, 'B'),
-        h('span', { key: 'C' }, 'C'),
-        h('span', { key: 'D' }, 'D'),
-        h('span', { key: 'E' }, 'E'),
-        h('span', { key: 'F' }, 'F'),
-        h('span', { key: 'G' }, 'G'),
-      ]), app)
-    }, 5000)
+    const { createApp } = Vue
+    createApp({
+      template: '<div>123</div>'
+    }).mount('#app')
   </script>
 </body>
 

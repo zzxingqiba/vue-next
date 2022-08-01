@@ -76,7 +76,6 @@ function _createVNode(
       if (isProxy(style) && !isArray(style)) {
         style = extend({}, style)
       }
-      console.log(style)
       props.style = normalizeStyle(style)
     }
   }
@@ -147,7 +146,6 @@ function createBaseVNode(
     normalizeChildren(vnode, children)
   }
   
-
   return vnode
 }
 

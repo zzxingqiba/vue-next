@@ -84,7 +84,7 @@ export function createAppAPI(
         isSVG?: boolean
       ){
         if (!isMounted) {
-          // 创建虚拟节点
+          // 创建虚拟节点createVNode
           const vnode = createVNode(rootComponent, rootProps)
           vnode.appContext = context
           if (isHydrate && hydrate) {

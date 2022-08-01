@@ -108,17 +108,17 @@ function baseCreateRenderer(options: any, createHydrationFns?: any) {
             optimized
           );
         } else if (shapeFlag & ShapeFlags.COMPONENT) {
-          // processComponent(
-          //   n1,
-          //   n2,
-          //   container,
-          //   anchor,
-          //   parentComponent,
-          //   parentSuspense,
-          //   isSVG,
-          //   slotScopeIds,
-          //   optimized
-          // )
+          processComponent(
+            n1,
+            n2,
+            container,
+            anchor,
+            parentComponent,
+            parentSuspense,
+            isSVG,
+            slotScopeIds,
+            optimized
+          )
         }
       // else if (shapeFlag & ShapeFlags.TELEPORT) {
       //   ;(type as typeof TeleportImpl).process(
