@@ -9,6 +9,7 @@ import {
   cloneIfMounted,
 } from "./vnode";
 import {
+  EMPTY_ARR,
   EMPTY_OBJ,
   isReservedProp,
   NOOP,
@@ -17,6 +18,7 @@ import {
 } from "@vue/shared";
 import { createAppAPI } from "./apiCreateApp";
 import { createComponentInstance, setupComponent } from "./component";
+import { getSequence } from './getSequence'
 
 export function createRenderer(options: any) {
   return baseCreateRenderer(options);
@@ -404,40 +406,89 @@ function baseCreateRenderer(options: any, createHydrationFns?: any) {
     // [i ... e2 + 1]: a b [e d c h] f g
     // i = 2, e1 = 4, e2 = 5
     // 乱序对比
-    let s1 = i;
-    let s2 = i;
-    const keyToNewIndexMap = new Map();
-    // 新节点建立key key  value index的映射关系
-    for (let i = s2; i <= e2; i++) {
-      keyToNewIndexMap.set(c2[i].key, i);
-    }
+    else {
+      // 例
+      // [A,B,C,D,E,F,G]
+      // [A,B,E,C,D,H,F,G]
+      let s1 = i;
+      let s2 = i;
 
-    const toBePatch = e2 - s2 + 1; // 新节点总个数
-    const newIndexToOldIndexMap = new Array(toBePatch).fill(0); // 长度为新节点个数 记录值为旧节点索引+1  目的为判断是否比对过 未比对过则是新增 为0
-
-    // 循环旧元素 看一下新的里边是否存在 不存在则删除 存在则对比
-    for (let i = s1; i <= e1; i++) {
-      const oldChild = c1[i]; // 旧节点
-      let newIndex = keyToNewIndexMap.get(oldChild.key);
-      if (newIndex) {
-        newIndexToOldIndexMap[newIndex - s2] = i + 1;
-        patch(oldChild, c2[newIndex], container);
-      } else {
-        unmount(oldChild, parentComponent, parentSuspense, true);
+      // 5.1 build key:index map for newChildren
+      const keyToNewIndexMap = new Map();
+      // 新节点建立key key  value index的映射关系
+      for (let i = s2; i <= e2; i++) {
+        keyToNewIndexMap.set(c2[i].key, i);
       }
-    }
+      // keyToNewIndexMap: [E:2, C:3, D:4, H:5]
 
-    // 需移动位置  上面只是比对而已  实际的vonde的el并没有移动
-    // 倒序遍历 以便插入 遍历节点长度次数即可 初始值应为长度-1 代表索引
-    for (let i = toBePatch - 1; i >= 0; i--) {
-      let index = i + s2; // 新节点索引位置  长度所在位置 + s2
-      let current = c2[index]; // 当前节点
-      let anchor = index + 1 < c2.length ? c2[index + 1].el : null; // 找到参照节点 没找到则是appendChild 找到插在前面
-      if (newIndexToOldIndexMap[i] == 0) {
-        patch(null, current, container, anchor);
-      } else {
-        // 比对完 vode一定有el了
-        hostInsert(current.el, container, anchor);
+      const toBePatch = e2 - s2 + 1; // 新节点总个数
+      const newIndexToOldIndexMap = new Array(toBePatch).fill(0); // 长度为新节点个数 记录值为旧节点索引+1  目的为判断是否比对过 未比对过则是新增 为0
+      let moved = false
+      // used to track whether any node has moved
+      let maxNewIndexSoFar = 0
+
+      // 5.2 loop through old children left to be patched and try to patch
+      // matching nodes & remove nodes that are no longer present
+      // 循环旧元素 看一下新的里边是否存在 不存在则删除 存在则对比
+      for (let i = s1; i <= e1; i++) {
+        const oldChild = c1[i]; // 旧节点
+        let newIndex = keyToNewIndexMap.get(oldChild.key);
+        if (newIndex) {
+          newIndexToOldIndexMap[newIndex - s2] = i + 1; // 0为添加 防止初始为0情况 所以全部+1基础 为了找到递增序列 +1无影响 不关心数值 因为索引位置是不变的 最后用索引
+          if (newIndex >= maxNewIndexSoFar) {
+            maxNewIndexSoFar = newIndex
+          } else {
+            moved = true
+          }
+          patch(oldChild, c2[newIndex], container);
+        } else {
+          unmount(oldChild, parentComponent, parentSuspense, true);
+        }
+      }
+      // newIndexToOldIndexMap: [4, 2, 3, 0] (+ 1) => [5, 3, 4, 0]
+
+      // 5.3 move and mount
+      // generate longest stable subsequence only when nodes have moved 
+
+      // 5.3.1 未做任何优化情况
+      /**
+       * // 需移动位置  上面只是比对而已  实际的vonde的el并没有移动
+         // 倒序遍历 以便插入 遍历节点长度次数即可 初始值应为长度-1 代表索引
+         for (let i = toBePatch - 1; i >= 0; i--) {
+           let index = i + s2; // 新节点索引位置  长度所在位置 + s2
+           let current = c2[index]; // 当前节点
+           let anchor = index + 1 < c2.length ? c2[index + 1].el : null; // 找到参照节点 没找到则是appendChild 找到插在前面
+           if (newIndexToOldIndexMap[i] == 0) {
+             patch(null, current, container, anchor);
+           } else {
+             // 比对完 vode一定有el了
+             hostInsert(current.el, container, anchor);
+           }
+         }
+       */
+      
+      // 5.3.2 最长递增子序列优化
+      // 仅当节点移动时生成最长稳定子序列
+      const increasingNewIndexSequence = moved
+        ? getSequence(newIndexToOldIndexMap)
+        : EMPTY_ARR
+      // increasingNewIndexSequence: [1, 2] 递增索引 虽然之前+1 但是只关心递增不关心原先数值
+
+      let j = increasingNewIndexSequence.length - 1
+      // 倒序遍历 以便插入 遍历节点长度次数即可 初始值应为长度-1 代表索引
+      for (i = toBePatch - 1; i >= 0; i--) {
+        const nextIndex = s2 + i
+        const nextChild = c2[nextIndex]
+        const anchor = nextIndex + 1 < l2 ? c2[nextIndex + 1].el : parentAnchor // 找到参照节点
+        if (newIndexToOldIndexMap[i] === 0) {
+          patch(null, nextChild, container, anchor);
+        } else if (moved) {
+          if (j < 0 || i !== increasingNewIndexSequence[j]) {
+            hostInsert(nextChild.el, container, anchor)
+          } else {
+            j--
+          }
+        }
       }
     }
   };
