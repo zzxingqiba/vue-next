@@ -29,25 +29,25 @@ export function initProps(
 
   for (const key in instance.propsOptions[0]) {
     if (!(key in props)) {
-      props[key] = undefined
+      props[key] = undefined;
     }
   }
   if (isStateful) {
     // stateful
-    instance.props = props
+    instance.props = props;
     // instance.props = shallowReactive(props) // props为响应式 但是内层变化 无法发页面更新
-  } 
+  }
   // 函数式 暂不考虑 用的不多
   else {
     if (!instance.type.props) {
       // functional w/ optional props, props === attrs
-      instance.props = attrs
+      instance.props = attrs;
     } else {
       // functional w/ declared props
-      instance.props = props
+      instance.props = props;
     }
   }
-  instance.attrs = attrs
+  instance.attrs = attrs;
 }
 
 function setFullProps(instance, rawProps, props, attrs) {
@@ -135,17 +135,22 @@ function resolvePropValue(
       } else {
         value = defaultValue;
       }
-      // boolean casting
-      if (opt[BooleanFlags.shouldCast]) {
-        // 声明了但是没传 并且 这个值没有default  直接赋值false默认值
-        if (isAbsent && !hasDefault) {
-          value = false;
-        } else if (
-          opt[BooleanFlags.shouldCastTrue] &&
-          (value === "" || value === hyphenate(key))
-        ) {
-          value = true;
-        }
+    }
+    // boolean casting
+    // count: [String, Number, Boolean]
+    // 数组形式 是看优先级的 传值为''时优先取在前的
+    // 例:
+    // String在前BooleanFlags.shouldCastTrue为false 正常接受值为''
+    // Boolean在前BooleanFlags.shouldCastTrue为true 值被改成true
+    if (opt[BooleanFlags.shouldCast]) {
+      // 声明了但是没传 并且 这个值没有default  直接赋值false默认值
+      if (isAbsent && !hasDefault) {
+        value = false;
+      } else if (
+        opt[BooleanFlags.shouldCastTrue] &&
+        (value === "" || value === hyphenate(key))
+      ) {
+        value = true;
       }
     }
   }
