@@ -14,6 +14,8 @@ export const Text = Symbol(undefined)
 export const Comment = Symbol(undefined)
 export const Static = Symbol(undefined)
 
+export const InternalObjectKey = `__vInternal`
+
 export interface VNode{
   key: string | number | symbol | null
   type: any

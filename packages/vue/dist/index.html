@@ -10,12 +10,38 @@
 
 <body>
   <script src="./vue.global.js"></script>
-  <div id="app">222</div>
+  <div id="app"></div>
   <script>
-    const { createApp } = Vue
-    createApp({
-      template: '<div>123</div>'
-    }).mount('#app')
+    const app = document.getElementById('app')
+    const { h, render } = Vue
+    const VueComponent = {
+      props:{
+        flag:{
+          type:Boolean,
+          default:true
+        },
+        age:{
+          type:Number,
+          default:'222'
+        },
+        params: {
+          type: Object,
+          default: ()=>({}),
+        },
+        count: [String, Number, Boolean],
+        address:String,
+        
+      },
+      data(){
+        return {
+          name: 'zz'
+        }
+      },
+      render(){
+        return h('p', [`${this.address + this.age + this.name + this.flag}`])
+      }
+    }
+    render(h(VueComponent,{address: '嘿哈', a:2}), app)
   </script>
 </body>
 

@@ -1,6 +1,7 @@
 import { markRaw } from "@vue/reactivity"
 import { EMPTY_OBJ, extend, NOOP, ShapeFlags } from "@vue/shared"
 import { createAppContext } from "./apiCreateApp"
+import { initProps, normalizePropsOptions } from "./componentProps"
 
 export function isStatefulComponent(instance) {
   return instance.vnode.shapeFlag & ShapeFlags.STATEFUL_COMPONENT
@@ -11,9 +12,9 @@ export function setupComponent(
   isSSR = false
 ) {
 
-  // const { props, children } = instance.vnode
+  const { props, children } = instance.vnode
   const isStateful = isStatefulComponent(instance)
-  // initProps(instance, props, isStateful, isSSR)
+  initProps(instance, props, isStateful, isSSR)
   // initSlots(instance, children)
 
   const setupResult = isStateful
@@ -132,7 +133,7 @@ export function createComponentInstance(
     directives: null,
 
     // resolved props and emits options
-    // propsOptions: normalizePropsOptions(type, appContext),
+    propsOptions: normalizePropsOptions(type, appContext),
     // emitsOptions: normalizeEmitsOptions(type, appContext),
 
     // emit

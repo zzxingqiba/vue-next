@@ -746,14 +746,15 @@ function baseCreateRenderer(options: any, createHydrationFns?: any) {
     isSVG,
     optimized
   ) => {
+    // 创建一个实例
     const instance = (initialVNode.component = createComponentInstance(
       initialVNode,
       parentComponent,
       parentSuspense
     ));
-
+    // 给实例赋值
     setupComponent(instance);
-
+    // 创建一个effect
     // setupRenderEffect(
     //   instance,
     //   initialVNode,
