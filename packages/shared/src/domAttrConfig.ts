@@ -1,4 +1,4 @@
-import { makeMap } from './makeMap'
+import { makeMap } from "./makeMap";
 
 /**
  * On the client we only need to offer special cases for boolean attributes that
@@ -11,13 +11,13 @@ import { makeMap } from './makeMap'
  * - novalidate -> noValidate
  * - readonly -> readOnly
  */
-const specialBooleanAttrs = `itemscope,allowfullscreen,formnovalidate,ismap,nomodule,novalidate,readonly`
-export const isSpecialBooleanAttr = /*#__PURE__*/ makeMap(specialBooleanAttrs)
+const specialBooleanAttrs = `itemscope,allowfullscreen,formnovalidate,ismap,nomodule,novalidate,readonly`;
+export const isSpecialBooleanAttr = /*#__PURE__*/ makeMap(specialBooleanAttrs);
 
 /**
  * Boolean attributes should be included if the value is truthy or ''.
  * e.g. `<select multiple>` compiles to `{ multiple: '' }`
  */
- export function includeBooleanAttr(value: unknown): boolean {
-  return !!value || value === ''
+export function includeBooleanAttr(value: unknown): boolean {
+  return !!value || value === "";
 }

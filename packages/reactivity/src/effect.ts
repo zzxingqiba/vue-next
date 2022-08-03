@@ -210,6 +210,21 @@ export function effect<T = any>(
 export let shouldTrack = true;
 const trackStack: boolean[] = [];
 
+export function pauseTracking() {
+  trackStack.push(shouldTrack);
+  shouldTrack = false;
+}
+
+export function enableTracking() {
+  trackStack.push(shouldTrack);
+  shouldTrack = true;
+}
+
+export function resetTracking() {
+  const last = trackStack.pop();
+  shouldTrack = last === undefined ? true : last;
+}
+
 export function track(target: object, type: TrackOpTypes, key: unknown) {
   if (shouldTrack && activeEffect) {
     // 收集开始

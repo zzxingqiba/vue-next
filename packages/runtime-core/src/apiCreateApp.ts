@@ -1,5 +1,5 @@
-import { isFunction, isObject, NO } from "@vue/shared"
-import { createVNode } from './vnode'
+import { isFunction, isObject, NO } from "@vue/shared";
+import { createVNode } from "./vnode";
 
 export function createAppContext() {
   return {
@@ -11,7 +11,7 @@ export function createAppContext() {
       optionMergeStrategies: {},
       errorHandler: undefined,
       warnHandler: undefined,
-      compilerOptions: {}
+      compilerOptions: {},
     },
     mixins: [],
     components: {},
@@ -19,16 +19,13 @@ export function createAppContext() {
     provides: Object.create(null),
     optionsCache: new WeakMap(),
     propsCache: new WeakMap(),
-    emitsCache: new WeakMap()
-  }
+    emitsCache: new WeakMap(),
+  };
 }
 
-let uid = 0
+let uid = 0;
 
-export function createAppAPI(
-  render,
-  hydrate?: any
-){
+export function createAppAPI(render, hydrate?: any) {
   // 本质返回app对象 将一系列方法挂载到app上 最后返回了app
   // rootComponent为 rootProps为根props
   return function createApp(rootComponent, rootProps = null) {
@@ -42,17 +39,17 @@ export function createAppAPI(
       //     }
       //   }
       // })
-      rootComponent = { ...rootComponent } // data...
+      rootComponent = { ...rootComponent }; // data...
     }
     // rootProps存在rootProps要为对象形式才会生效
     if (rootProps != null && !isObject(rootProps)) {
       // __DEV__ && warn(`root props passed to app.mount() must be an object.`)
-      rootProps = null
+      rootProps = null;
     }
-    const context = createAppContext()
-    const installedPlugins = new Set()
+    const context = createAppContext();
+    const installedPlugins = new Set();
 
-    let isMounted = false
+    let isMounted = false;
 
     const app = (context.app = {
       _uid: uid++,
@@ -63,11 +60,13 @@ export function createAppAPI(
       _instance: null,
 
       get config() {
-        return context.config
+        return context.config;
       },
 
       set config(v) {
-        console.warn('app.config cannot be replaced. Modify individual options instead.')
+        console.warn(
+          "app.config cannot be replaced. Modify individual options instead."
+        );
       },
 
       use(plugin, ...options) {},
@@ -78,20 +77,16 @@ export function createAppAPI(
 
       directive(name: string, directive?: any) {},
 
-      mount(
-        rootContainer,
-        isHydrate?: boolean,
-        isSVG?: boolean
-      ){
+      mount(rootContainer, isHydrate?: boolean, isSVG?: boolean) {
         if (!isMounted) {
           // 创建虚拟节点createVNode
-          const vnode = createVNode(rootComponent, rootProps)
-          vnode.appContext = context
+          const vnode = createVNode(rootComponent, rootProps);
+          vnode.appContext = context;
           if (isHydrate && hydrate) {
-            hydrate(vnode, rootContainer as any)
+            hydrate(vnode, rootContainer as any);
           } else {
             //渲染虚拟节点为真实节点
-            render(vnode, rootContainer, isSVG)
+            render(vnode, rootContainer, isSVG);
           }
           // isMounted = true
           // app._container = rootContainer
@@ -104,9 +99,8 @@ export function createAppAPI(
       unmount() {},
 
       provide(key, value) {},
+    });
 
-    })
-    
-    return app
-  }
+    return app;
+  };
 }

@@ -18,10 +18,17 @@ import {
 } from "@vue/shared";
 import { createAppAPI } from "./apiCreateApp";
 import { createComponentInstance, setupComponent } from "./component";
-import { getSequence } from './getSequence'
+import { getSequence } from "./getSequence";
+import { renderComponentRoot } from "./componentRenderUtils";
+import { ReactiveEffect } from "@vue/reactivity";
+import { queueJob, SchedulerJob } from "./scheduler";
 
 export function createRenderer(options: any) {
   return baseCreateRenderer(options);
+}
+
+function toggleRecurse({ effect, update }, allowed: boolean) {
+  effect.allowRecurse = update.allowRecurse = allowed;
 }
 
 function baseCreateRenderer(options: any, createHydrationFns?: any) {
@@ -118,7 +125,7 @@ function baseCreateRenderer(options: any, createHydrationFns?: any) {
             isSVG,
             slotScopeIds,
             optimized
-          )
+          );
         }
       // else if (shapeFlag & ShapeFlags.TELEPORT) {
       //   ;(type as typeof TeleportImpl).process(
@@ -423,9 +430,9 @@ function baseCreateRenderer(options: any, createHydrationFns?: any) {
 
       const toBePatch = e2 - s2 + 1; // 新节点总个数
       const newIndexToOldIndexMap = new Array(toBePatch).fill(0); // 长度为新节点个数 记录值为旧节点索引+1  目的为判断是否比对过 未比对过则是新增 为0
-      let moved = false
+      let moved = false;
       // used to track whether any node has moved
-      let maxNewIndexSoFar = 0
+      let maxNewIndexSoFar = 0;
 
       // 5.2 loop through old children left to be patched and try to patch
       // matching nodes & remove nodes that are no longer present
@@ -436,9 +443,9 @@ function baseCreateRenderer(options: any, createHydrationFns?: any) {
         if (newIndex) {
           newIndexToOldIndexMap[newIndex - s2] = i + 1; // 0为添加 防止初始为0情况 所以全部+1基础 为了找到递增序列 +1无影响 不关心数值 因为索引位置是不变的 最后用索引
           if (newIndex >= maxNewIndexSoFar) {
-            maxNewIndexSoFar = newIndex
+            maxNewIndexSoFar = newIndex;
           } else {
-            moved = true
+            moved = true;
           }
           patch(oldChild, c2[newIndex], container);
         } else {
@@ -448,7 +455,7 @@ function baseCreateRenderer(options: any, createHydrationFns?: any) {
       // newIndexToOldIndexMap: [4, 2, 3, 0] (+ 1) => [5, 3, 4, 0]
 
       // 5.3 move and mount
-      // generate longest stable subsequence only when nodes have moved 
+      // generate longest stable subsequence only when nodes have moved
 
       // 5.3.1 未做任何优化情况
       /**
@@ -466,27 +473,27 @@ function baseCreateRenderer(options: any, createHydrationFns?: any) {
            }
          }
        */
-      
+
       // 5.3.2 最长递增子序列优化
       // 仅当节点移动时生成最长稳定子序列
       const increasingNewIndexSequence = moved
         ? getSequence(newIndexToOldIndexMap)
-        : EMPTY_ARR
+        : EMPTY_ARR;
       // increasingNewIndexSequence: [1, 2] 递增索引 虽然之前+1 但是只关心递增不关心原先数值
 
-      let j = increasingNewIndexSequence.length - 1
+      let j = increasingNewIndexSequence.length - 1;
       // 倒序遍历 以便插入 遍历节点长度次数即可 初始值应为长度-1 代表索引
       for (i = toBePatch - 1; i >= 0; i--) {
-        const nextIndex = s2 + i
-        const nextChild = c2[nextIndex]
-        const anchor = nextIndex + 1 < l2 ? c2[nextIndex + 1].el : parentAnchor // 找到参照节点
+        const nextIndex = s2 + i;
+        const nextChild = c2[nextIndex];
+        const anchor = nextIndex + 1 < l2 ? c2[nextIndex + 1].el : parentAnchor; // 找到参照节点
         if (newIndexToOldIndexMap[i] === 0) {
           patch(null, nextChild, container, anchor);
         } else if (moved) {
           if (j < 0 || i !== increasingNewIndexSequence[j]) {
-            hostInsert(nextChild.el, container, anchor)
+            hostInsert(nextChild.el, container, anchor);
           } else {
-            j--
+            j--;
           }
         }
       }
@@ -755,15 +762,70 @@ function baseCreateRenderer(options: any, createHydrationFns?: any) {
     // 给实例赋值
     setupComponent(instance);
     // 创建一个effect
-    // setupRenderEffect(
-    //   instance,
-    //   initialVNode,
-    //   container,
-    //   anchor,
-    //   parentSuspense,
-    //   isSVG,
-    //   optimized
-    // )
+    setupRenderEffect(
+      instance,
+      initialVNode,
+      container,
+      anchor,
+      parentSuspense,
+      isSVG,
+      optimized
+    );
+  };
+
+  const setupRenderEffect = (
+    instance,
+    initialVNode,
+    container,
+    anchor,
+    parentSuspense,
+    isSVG,
+    optimized
+  ) => {
+    const componentUpdateFn = () => {
+      if (!instance.isMounted) {
+        const subTree = (instance.subTree = renderComponentRoot(instance));
+        patch(
+          null,
+          subTree,
+          container,
+          anchor,
+          instance,
+          parentSuspense,
+          isSVG
+        );
+        initialVNode.el = subTree.el;
+        instance.isMounted = true;
+      } else {
+        const nextTree = renderComponentRoot(instance);
+        const prevTree = instance.subTree;
+        instance.subTree = nextTree;
+        patch(
+          prevTree,
+          nextTree,
+          // parent may have changed if it's in a teleport
+          hostParentNode(prevTree.el!)!,
+          // anchor may have changed if it's in a fragment
+          getNextHostNode(prevTree),
+          instance,
+          parentSuspense,
+          isSVG
+        );
+      }
+    };
+    // create reactive effect for rendering
+    const effect = (instance.effect = new ReactiveEffect(
+      componentUpdateFn,
+      () => queueJob(update),
+      instance.scope // track it in component's effect scope
+    ));
+
+    const update: SchedulerJob = (instance.update = () => effect.run());
+    update.id = instance.uid;
+    // allowRecurse
+    // #1801, #2043 component render effects should allow recursive updates
+    toggleRecurse(instance, true);
+    update();
   };
 
   const render = (vnode, container, isSVG) => {

@@ -1,29 +1,41 @@
-import { isProxy, isRef } from "@vue/reactivity"
-import { extend, isArray, isFunction, isObject, isString, normalizeClass, normalizeStyle, ShapeFlags } from "@vue/shared"
-import { currentRenderingInstance, currentScopeId } from "./componentRenderContext"
-import { isSuspense } from "./components/Suspense"
-import { isTeleport } from "./components/Teleport"
+import { isProxy, isRef } from "@vue/reactivity";
+import {
+  extend,
+  isArray,
+  isFunction,
+  isObject,
+  isString,
+  normalizeClass,
+  normalizeStyle,
+  ShapeFlags,
+} from "@vue/shared";
+import {
+  currentRenderingInstance,
+  currentScopeId,
+} from "./componentRenderContext";
+import { isSuspense } from "./components/Suspense";
+import { isTeleport } from "./components/Teleport";
 
 export const Fragment = Symbol(undefined) as any as {
-  __isFragment: true
+  __isFragment: true;
   new (): {
-    $props: any
-  }
-}
-export const Text = Symbol(undefined)
-export const Comment = Symbol(undefined)
-export const Static = Symbol(undefined)
+    $props: any;
+  };
+};
+export const Text = Symbol(undefined);
+export const Comment = Symbol(undefined);
+export const Static = Symbol(undefined);
 
-export const InternalObjectKey = `__vInternal`
+export const InternalObjectKey = `__vInternal`;
 
-export interface VNode{
-  key: string | number | symbol | null
-  type: any
-  appContext: any | null
-  children: any
+export interface VNode {
+  key: string | number | symbol | null;
+  type: any;
+  appContext: any | null;
+  children: any;
   // optimization only
-  shapeFlag: number
-  patchFlag: number
+  shapeFlag: number;
+  patchFlag: number;
   /**
    * SFC only. This is assigned to:
    * - Slot fragment vnodes with :slotted SFC styles.
@@ -31,25 +43,23 @@ export interface VNode{
    *   inherit the component's slotScopeIds
    * @internal
    */
-  slotScopeIds: string[] | null
-  el
-  props
+  slotScopeIds: string[] | null;
+  el;
+  props;
 }
 
 export function isVNode(value: any): value is VNode {
-  return value ? value.__v_isVNode === true : false
+  return value ? value.__v_isVNode === true : false;
 }
 
 /**
  * @private
  */
- export function createTextVNode(text: string = ' ', flag: number = 0): VNode {
-  return createVNode(Text, null, text, flag)
+export function createTextVNode(text: string = " ", flag: number = 0): VNode {
+  return createVNode(Text, null, text, flag);
 }
 
-export const createVNode = (
-  _createVNode
-) as typeof _createVNode
+export const createVNode = _createVNode as typeof _createVNode;
 
 function _createVNode(
   type,
@@ -58,27 +68,27 @@ function _createVNode(
   patchFlag: number = 0,
   dynamicProps: string[] | null = null,
   isBlockNode = false
-): VNode{
-
-  if (isVNode(type)) {}
+): VNode {
+  if (isVNode(type)) {
+  }
 
   // class & style normalization.
   // 格式化 class 合 style 写法
   if (props) {
     // for reactive or proxy objects, we need to clone it to enable mutation.
     // props = guardReactiveProps(props)!
-    let { class: klass, style } = props
+    let { class: klass, style } = props;
     if (klass && !isString(klass)) {
-      props.class = normalizeClass(klass)
+      props.class = normalizeClass(klass);
     }
     if (isObject(style)) {
       // reactive state objects need to be cloned since they are likely to be
       // mutated
       // 拷贝一份 防止待会遍历style触发响应式
       if (isProxy(style) && !isArray(style)) {
-        style = extend({}, style)
+        style = extend({}, style);
       }
-      props.style = normalizeStyle(style)
+      props.style = normalizeStyle(style);
     }
   }
 
@@ -92,18 +102,18 @@ function _createVNode(
     ? ShapeFlags.STATEFUL_COMPONENT
     : isFunction(type)
     ? ShapeFlags.FUNCTIONAL_COMPONENT
-    : 0
-  
-    return createBaseVNode(
-      type,
-      props,
-      children,
-      patchFlag,
-      dynamicProps,
-      shapeFlag,
-      isBlockNode,
-      true
-    )
+    : 0;
+
+  return createBaseVNode(
+    type,
+    props,
+    children,
+    patchFlag,
+    dynamicProps,
+    shapeFlag,
+    isBlockNode,
+    true
+  );
 }
 
 function createBaseVNode(
@@ -141,66 +151,61 @@ function createBaseVNode(
     patchFlag,
     dynamicProps,
     dynamicChildren: null,
-    appContext: null
-  } as VNode
+    appContext: null,
+  } as VNode;
 
   if (needFullChildrenNormalization) {
-    normalizeChildren(vnode, children)
+    normalizeChildren(vnode, children);
   }
-  
-  return vnode
+
+  return vnode;
 }
 
 // 标示当前节点的孩子是什么类型的
 export function normalizeChildren(vnode: VNode, children: unknown) {
-  let type = 0
-  const { shapeFlag } = vnode
+  let type = 0;
+  const { shapeFlag } = vnode;
   if (children == null) {
-    children = null
-  }  else if (isArray(children)) {
-    type = ShapeFlags.ARRAY_CHILDREN
-  }  else {
-    children = String(children)
+    children = null;
+  } else if (isArray(children)) {
+    type = ShapeFlags.ARRAY_CHILDREN;
+  } else {
+    children = String(children);
     // force teleport children to array so it can be moved around
     if (shapeFlag & ShapeFlags.TELEPORT) {
-      type = ShapeFlags.ARRAY_CHILDREN
-      children = [createTextVNode(children as string)]
+      type = ShapeFlags.ARRAY_CHILDREN;
+      children = [createTextVNode(children as string)];
     } else {
       // 为文本时
-      type = ShapeFlags.TEXT_CHILDREN
+      type = ShapeFlags.TEXT_CHILDREN;
     }
   }
   // 形成vnode树
-  vnode.children = children
+  vnode.children = children;
   // 合并当前vonde与孩子的类型 以便下次验证孩子节点类型时 使用&运算符即可  2 | 4 = 6   6 & 4 = 4
-  vnode.shapeFlag |= type
+  vnode.shapeFlag |= type;
 }
 
-const normalizeKey = ({ key }: any): VNode['key'] =>
-  key != null ? key : null
+const normalizeKey = ({ key }: any): VNode["key"] => (key != null ? key : null);
 
-const normalizeRef = ({
-  ref,
-  ref_key,
-  ref_for
-})=> {
+const normalizeRef = ({ ref, ref_key, ref_for }) => {
   return (
     ref != null
       ? isString(ref) || isRef(ref) || isFunction(ref)
         ? { i: currentRenderingInstance, r: ref, k: ref_key, f: !!ref_for }
         : ref
       : null
-  ) as any
-}
+  ) as any;
+};
 
 export function isSameVNodeType(n1: VNode, n2: VNode): boolean {
-  return n1.type === n2.type && n1.key === n2.key
+  return n1.type === n2.type && n1.key === n2.key;
 }
 
 export function normalizeVNode(child): VNode {
-  if (child == null || typeof child === 'boolean') {
+  if (child == null || typeof child === "boolean") {
     // empty placeholder
-    return createVNode(Comment)
+    return createVNode(Comment);
   } else if (isArray(child)) {
     // fragment
     return createVNode(
@@ -208,19 +213,19 @@ export function normalizeVNode(child): VNode {
       null,
       // #3666, avoid reference pollution when reusing vnode
       child.slice()
-    )
-  } else if (typeof child === 'object') {
+    );
+  } else if (typeof child === "object") {
     // already vnode, this should be the most common since compiled templates
     // always produce all-vnode children arrays
-    return cloneIfMounted(child)
+    return cloneIfMounted(child);
   } else {
     // strings and numbers
-    return createVNode(Text, null, String(child))
+    return createVNode(Text, null, String(child));
   }
 }
 
 // optimized normalization for template-compiled render fns
 export function cloneIfMounted(child: VNode): VNode {
   // return child.el === null || child.memo ? child : cloneVNode(child)
-  return child
+  return child;
 }

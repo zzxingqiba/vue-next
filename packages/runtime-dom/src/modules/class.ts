@@ -4,17 +4,17 @@ export function patchClass(el: Element, value: string | null, isSVG: boolean) {
   // directly setting className should be faster than setAttribute in theory
   // if this is an element during a transition, take the temporary transition
   // classes into account.
-  const transitionClasses = ( el as {_vtc?: Set<string>} )._vtc
+  const transitionClasses = (el as { _vtc?: Set<string> })._vtc;
   if (transitionClasses) {
     value = (
       value ? [value, ...transitionClasses] : [...transitionClasses]
-    ).join(' ')
+    ).join(" ");
   }
   if (value == null) {
-    el.removeAttribute('class')
+    el.removeAttribute("class");
   } else if (isSVG) {
-    el.setAttribute('class', value)
+    el.setAttribute("class", value);
   } else {
-    el.className = value
+    el.className = value;
   }
 }

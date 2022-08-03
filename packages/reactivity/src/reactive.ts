@@ -121,7 +121,7 @@ function createReactiveObject(
 }
 
 export function isProxy(value: unknown): boolean {
-  return isReactive(value) || isReadonly(value)
+  return isReactive(value) || isReadonly(value);
 }
 
 export function isReactive(value: unknown): boolean {
@@ -142,11 +142,9 @@ export function toRaw<T>(observed: T): T {
 export const toReactive = (value) =>
   isObject(value) ? reactive(value) : value;
 
-export function markRaw<T extends object>(
-  value: T
-){
-  def(value, ReactiveFlags.SKIP, true)
-  return value
+export function markRaw<T extends object>(value: T) {
+  def(value, ReactiveFlags.SKIP, true);
+  return value;
 }
 
 export function isShallow(value: unknown): boolean {

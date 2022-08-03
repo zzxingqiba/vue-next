@@ -1,1 +1,1 @@
-export const isTeleport = (type: any): boolean => type.__isTeleport
+export const isTeleport = (type: any): boolean => type.__isTeleport;

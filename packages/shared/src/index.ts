@@ -1,28 +1,27 @@
 import { makeMap } from "./makeMap";
-export * from './typeUtils'
-export * from './shapeFlags'
-export * from './patchFlags'
-export * from './normalizeProp'
-export * from './domAttrConfig'
-
+export * from "./typeUtils";
+export * from "./shapeFlags";
+export * from "./patchFlags";
+export * from "./normalizeProp";
+export * from "./domAttrConfig";
 
 export { makeMap };
 
 /**
  * Always return false.
  */
-export const NO = () => false
+export const NO = () => false;
 
 export const EMPTY_OBJ: { readonly [key: string]: any } = {};
 
-export const EMPTY_ARR = []
+export const EMPTY_ARR = [];
 
-export const NOOP = () => { };
+export const NOOP = () => {};
 
-const onRE = /^on[^a-z]/
-export const isOn = (key: string) => onRE.test(key)
+const onRE = /^on[^a-z]/;
+export const isOn = (key: string) => onRE.test(key);
 
-export const isModelListener = (key: string) => key.startsWith('onUpdate:')
+export const isModelListener = (key: string) => key.startsWith("onUpdate:");
 
 export const isString = (val: unknown): val is string =>
   typeof val === "string";
@@ -75,56 +74,56 @@ export const isIntegerKey = (key: unknown) =>
 export const hasChanged = (value: any, oldValue: any): boolean =>
   !Object.is(value, oldValue);
 
-let _globalThis: any
+let _globalThis: any;
 export const getGlobalThis = (): any => {
   return (
     _globalThis ||
     (_globalThis =
-      typeof globalThis !== 'undefined'
+      typeof globalThis !== "undefined"
         ? globalThis
-        : typeof self !== 'undefined'
-          ? self
-          : typeof window !== 'undefined'
-            ? window
-            : {})
-  )
-}
+        : typeof self !== "undefined"
+        ? self
+        : typeof window !== "undefined"
+        ? window
+        : {})
+  );
+};
 
 export const isReservedProp = /*#__PURE__*/ makeMap(
   // the leading comma is intentional so empty string "" is also included
-  ',key,ref,ref_for,ref_key,' +
-    'onVnodeBeforeMount,onVnodeMounted,' +
-    'onVnodeBeforeUpdate,onVnodeUpdated,' +
-    'onVnodeBeforeUnmount,onVnodeUnmounted'
-)
+  ",key,ref,ref_for,ref_key," +
+    "onVnodeBeforeMount,onVnodeMounted," +
+    "onVnodeBeforeUpdate,onVnodeUpdated," +
+    "onVnodeBeforeUnmount,onVnodeUnmounted"
+);
 
 const cacheStringFunction = <T extends (str: string) => string>(fn: T): T => {
-  const cache: Record<string, string> = Object.create(null)
+  const cache: Record<string, string> = Object.create(null);
   return ((str: string) => {
-    const hit = cache[str]
-    return hit || (cache[str] = fn(str))
-  }) as any
-}
+    const hit = cache[str];
+    return hit || (cache[str] = fn(str));
+  }) as any;
+};
 
-const hyphenateRE = /\B([A-Z])/g
+const hyphenateRE = /\B([A-Z])/g;
 /**
  * @private
  */
 export const hyphenate = cacheStringFunction((str: string) =>
-  str.replace(hyphenateRE, '-$1').toLowerCase()
-)
+  str.replace(hyphenateRE, "-$1").toLowerCase()
+);
 
 /**
  * @private
  */
- export const capitalize = cacheStringFunction(
+export const capitalize = cacheStringFunction(
   (str: string) => str.charAt(0).toUpperCase() + str.slice(1)
-)
+);
 
-const camelizeRE = /-(\w)/g
+const camelizeRE = /-(\w)/g;
 /**
  * @private
  */
 export const camelize = cacheStringFunction((str: string): string => {
-  return str.replace(camelizeRE, (_, c) => (c ? c.toUpperCase() : ''))
-})
+  return str.replace(camelizeRE, (_, c) => (c ? c.toUpperCase() : ""));
+});

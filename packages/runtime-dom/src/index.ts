@@ -1,66 +1,60 @@
-import {
-  createRenderer,
-} from '@vue/runtime-core'
-import { extend, isFunction, isString } from '@vue/shared';
-import { nodeOps } from './nodeOps';
-import { patchProp } from './patchProp';
+import { createRenderer } from "@vue/runtime-core";
+import { extend, isFunction, isString } from "@vue/shared";
+import { nodeOps } from "./nodeOps";
+import { patchProp } from "./patchProp";
 
+const rendererOptions = /*#__PURE__*/ extend({ patchProp }, nodeOps);
 
-const rendererOptions = /*#__PURE__*/ extend({ patchProp }, nodeOps)
-
-let renderer:any;
+let renderer: any;
 
 // 提供render方法
-export const render = ((...args) => {
-  ensureRenderer().render(...args)
-})
+export const render = (...args) => {
+  ensureRenderer().render(...args);
+};
 
 // ensureRenderer调用baseCreateRenderer 返回{render, createApp}对象
 function ensureRenderer() {
-  return (
-    renderer ||
-    (renderer = createRenderer(rendererOptions))
-  )
+  return renderer || (renderer = createRenderer(rendererOptions));
 }
 
 // 外部暴露createApp
-export const createApp = ((...args: any) => {
-  const app = ensureRenderer().createApp(...args)
+export const createApp = (...args: any) => {
+  const app = ensureRenderer().createApp(...args);
 
-  const { mount } = app
+  const { mount } = app;
 
   app.mount = (containerOrSelector: Element | ShadowRoot | string): any => {
-    const container = normalizeContainer(containerOrSelector)
-    if (!container) return
+    const container = normalizeContainer(containerOrSelector);
+    if (!container) return;
 
-    const component = app._component
+    const component = app._component;
     // createApp没有传template或render之类的 就给个空得template 没啥用这里
     if (!isFunction(component) && !component.render && !component.template) {
-      component.template = container.innerHTML
+      component.template = container.innerHTML;
     }
     // clear content before mounting
-    container.innerHTML = ''
+    container.innerHTML = "";
 
-    const proxy = mount(container, false, container instanceof SVGElement)
+    const proxy = mount(container, false, container instanceof SVGElement);
     if (container instanceof Element) {
-      container.removeAttribute('v-cloak')
-      container.setAttribute('data-v-app', '')
+      container.removeAttribute("v-cloak");
+      container.setAttribute("data-v-app", "");
     }
 
-    return proxy
-  }
+    return proxy;
+  };
 
-  return app
-})
+  return app;
+};
 
 function normalizeContainer(
   container: Element | ShadowRoot | string
 ): Element | null {
   if (isString(container)) {
-    const res = document.querySelector(container)
-    return res
+    const res = document.querySelector(container);
+    return res;
   }
-  return container as any
+  return container as any;
 }
 
 export * from "@vue/runtime-core";

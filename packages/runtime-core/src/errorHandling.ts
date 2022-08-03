@@ -1,4 +1,4 @@
-import { isFunction } from '@vue/shared'
+import { isFunction } from "@vue/shared";
 
 export function callWithErrorHandling(
   fn: Function,
@@ -6,13 +6,11 @@ export function callWithErrorHandling(
   type?: any,
   args?: unknown[]
 ) {
-  let res
+  let res;
   try {
-    res = args ? fn(...args) : fn()
-  } catch (err) {
-
-  }
-  return res
+    res = args ? fn(...args) : fn();
+  } catch (err) {}
+  return res;
 }
 
 export function callWithAsyncErrorHandling(
@@ -22,13 +20,13 @@ export function callWithAsyncErrorHandling(
   args?: unknown[]
 ): any[] {
   if (isFunction(fn)) {
-    const res = callWithErrorHandling(fn, null, null, args)
-    return res
+    const res = callWithErrorHandling(fn, null, null, args);
+    return res;
   }
 
-  const values = []
+  const values = [];
   for (let i = 0; i < fn.length; i++) {
-    values.push(callWithAsyncErrorHandling(fn[i], args))
+    values.push(callWithAsyncErrorHandling(fn[i], args));
   }
-  return values
+  return values;
 }

@@ -45,7 +45,6 @@ export function baseParse(
   content: string,
   options = {}
 ) {
-  debugger
   const context = createParserContext(content, options)
   const start = getCursor(context)
   // return createRoot(
