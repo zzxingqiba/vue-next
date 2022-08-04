@@ -115,7 +115,16 @@ function baseCreateRenderer(options: any, createHydrationFns?: any) {
             slotScopeIds,
             optimized
           );
-        } else if (shapeFlag & ShapeFlags.COMPONENT) {
+        }
+        // 组件渲染流程:
+        // 初次会创建一个组件实例, 然后会给组件实例赋值, 比如区分attrs和props, 也会调用组件data函数、watch、computed添加到实例上(包括$的一些方法)
+        // 并在实例上挂载一个proxy属性(这个proxy属性就是将组件实例通过new Proxy去进行了拦截) 目的是为了可以调用render的时候 通过this去取到组件实例上的data，props，attrs等
+        // 最后会去创建一个effect 他的调度器就是执行自身的run方法, 会去执行他的render函数 生成vnode节点 然后进行patch操作 进行正常节点的挂载流程
+        // 组件更新流程: 节点更新代表了子组件props发生了改变 也就是父组件状态发生了改变 所以会触发父组件的render函数重新执行
+        // 生成新的vonde节点 去和旧节点进行比较 (props在初次的时候被处理成了shallowReative  或许是为了可以watch porps的变化)
+        // 当比较到子组件时会触发子组件的更新 去执行子组件的调度器 此时会更新子组件的props 之后触发子组件的render函数 得到新的vonde  然后和旧节点进行patch比较
+        // 完成更新
+        else if (shapeFlag & ShapeFlags.COMPONENT) {
           processComponent(
             n1,
             n2,
@@ -863,11 +872,11 @@ function baseCreateRenderer(options: any, createHydrationFns?: any) {
     nextVNode: VNode,
     optimized: boolean
   ) => {
-    nextVNode.component = instance
-    const prevProps = instance.vnode.props
-    instance.vnode = nextVNode
-    instance.next = null
-    updateProps(instance, nextVNode.props, prevProps, optimized)
+    nextVNode.component = instance;
+    const prevProps = instance.vnode.props;
+    instance.vnode = nextVNode;
+    instance.next = null;
+    updateProps(instance, nextVNode.props, prevProps, optimized);
     // updateSlots(instance, nextVNode.children, optimized)
 
     // pauseTracking()
