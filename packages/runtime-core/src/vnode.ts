@@ -46,6 +46,7 @@ export interface VNode {
   slotScopeIds: string[] | null;
   el;
   props;
+  component
 }
 
 export function isVNode(value: any): value is VNode {

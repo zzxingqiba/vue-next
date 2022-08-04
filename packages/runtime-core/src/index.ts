@@ -6,6 +6,7 @@ export {
   isRef,
   toRef,
   toRefs,
+  shallowReactive,
 } from "@vue/reactivity";
 export { computed } from "./apiComputed";
 export { watch } from "./apiWatch";

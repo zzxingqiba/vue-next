@@ -21,7 +21,8 @@ import { createComponentInstance, setupComponent } from "./component";
 import { getSequence } from "./getSequence";
 import { renderComponentRoot } from "./componentRenderUtils";
 import { ReactiveEffect } from "@vue/reactivity";
-import { queueJob, SchedulerJob } from "./scheduler";
+import { invalidateJob, queueJob, SchedulerJob } from "./scheduler";
+import { updateProps } from "./componentProps";
 
 export function createRenderer(options: any) {
   return baseCreateRenderer(options);
@@ -639,7 +640,24 @@ function baseCreateRenderer(options: any, createHydrationFns?: any) {
         );
       }
     } else {
-      // updateComponent(n1, n2, optimized)
+      updateComponent(n1, n2, optimized);
+    }
+  };
+
+  const updateComponent = (n1: VNode, n2: VNode, optimized: boolean) => {
+    const instance = (n2.component = n1.component)!;
+    if (true) {
+      // normal update
+      instance.next = n2;
+      // in case the child component is also queued, remove it to avoid
+      // double updating the same child component in the same flush.
+      invalidateJob(instance.update);
+      // instance.update is the reactive effect.
+      instance.update();
+    } else {
+      // no update needed. just copy over properties
+      n2.el = n1.el;
+      instance.vnode = n2;
     }
   };
 
@@ -797,6 +815,17 @@ function baseCreateRenderer(options: any, createHydrationFns?: any) {
         initialVNode.el = subTree.el;
         instance.isMounted = true;
       } else {
+        let { next, bu, u, parent, vnode } = instance;
+        let originNext = next;
+        // Disallow component effect recursion during pre-lifecycle hooks.
+        toggleRecurse(instance, false);
+        if (next) {
+          next.el = vnode.el;
+          updateComponentPreRender(instance, next, optimized);
+        } else {
+          next = vnode;
+        }
+        toggleRecurse(instance, true);
         const nextTree = renderComponentRoot(instance);
         const prevTree = instance.subTree;
         instance.subTree = nextTree;
@@ -811,6 +840,7 @@ function baseCreateRenderer(options: any, createHydrationFns?: any) {
           parentSuspense,
           isSVG
         );
+        next.el = nextTree.el;
       }
     };
     // create reactive effect for rendering
@@ -826,6 +856,25 @@ function baseCreateRenderer(options: any, createHydrationFns?: any) {
     // #1801, #2043 component render effects should allow recursive updates
     toggleRecurse(instance, true);
     update();
+  };
+
+  const updateComponentPreRender = (
+    instance,
+    nextVNode: VNode,
+    optimized: boolean
+  ) => {
+    nextVNode.component = instance
+    const prevProps = instance.vnode.props
+    instance.vnode = nextVNode
+    instance.next = null
+    updateProps(instance, nextVNode.props, prevProps, optimized)
+    // updateSlots(instance, nextVNode.children, optimized)
+
+    // pauseTracking()
+    // // props update may have triggered pre-flush watchers.
+    // // flush them before the render update.
+    // flushPreFlushCbs(undefined, instance.update)
+    // resetTracking()
   };
 
   const render = (vnode, container, isSVG) => {

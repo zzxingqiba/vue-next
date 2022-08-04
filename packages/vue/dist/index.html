@@ -13,35 +13,39 @@
   <div id="app"></div>
   <script>
     const app = document.getElementById('app')
-    const { h, render } = Vue
-    const VueComponent = {
-      props:{
-        flag:{
-          type:Boolean,
-          default:true
-        },
-        age:{
-          type:Number,
-          default:'222'
-        },
-        params: {
-          type: Object,
-          default: ()=>({}),
-        },
-        count: [String, Number, Boolean],
-        address:String,
-        
+    const { h, render, shallowReactive, effect } = Vue
+    const childCom = {
+      props: {
+        text: String
       },
+      render(){
+        return h('span', this.text)
+      }
+    } 
+    const VueComponent = {
       data(){
         return {
-          name: 'zz'
+          flag: true
         }
       },
       render(){
-        return h('p', [`${this.address + this.age + this.name + this.flag+this.$attrs.a}`])
+        return h('div', [h('button',{onClick:()=>this.flag = !this.flag} ,'点我'),h(childCom, {text: this.flag? 'hh':'xx'})])
       }
     }
-    render(h(VueComponent,{address: '嘿哈', a:2}), app)
+    render(h(VueComponent), app)
+
+    const state = shallowReactive({
+      foo: 1,
+      nested: {
+        bar: 2
+      }
+    })
+    effect(()=>{
+      console.log(state.foo)
+    })
+    setTimeout(()=>{
+      state.nested.bar++
+    },2000)
   </script>
 </body>
 

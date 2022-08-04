@@ -20,6 +20,7 @@ import {
   isIntegerKey,
   hasChanged,
   isObject,
+  extend,
 } from "@vue/shared";
 import { isRef } from "./ref";
 
@@ -36,6 +37,7 @@ const builtInSymbols = new Set(
 );
 
 const get = /*#__PURE__*/ createGetter();
+const shallowGet = /*#__PURE__*/ createGetter(false, true)
 const arrayInstrumentations = /*#__PURE__*/ createArrayInstrumentations();
 
 function createArrayInstrumentations() {
@@ -114,6 +116,10 @@ function createGetter(isReadonly = false, shallow = false) {
       track(target, TrackOpTypes.GET, key);
     }
 
+    if (shallow) {
+      return res;
+    }
+
     if (isObject(res)) {
       // Convert returned value into a proxy as well. we do the isObject check
       // here to avoid invalid value warning. Also need to lazy access readonly
@@ -128,6 +134,8 @@ function createGetter(isReadonly = false, shallow = false) {
 }
 
 const set = /*#__PURE__*/ createSetter();
+const shallowSet = /*#__PURE__*/ createSetter(true)
+
 function createSetter(shallow = false) {
   return function set(
     target: object,
@@ -181,3 +189,13 @@ export const mutableHandlers: ProxyHandler<object> = {
   // has,
   ownKeys, // for... in时会被触发
 };
+
+
+export const shallowReactiveHandlers = /*#__PURE__*/ extend(
+  {},
+  mutableHandlers,
+  {
+    get: shallowGet,
+    set: shallowSet
+  }
+)

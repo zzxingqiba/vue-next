@@ -1,4 +1,4 @@
-import { toRaw } from "@vue/reactivity";
+import { shallowReactive, toRaw } from "@vue/reactivity";
 import {
   camelize,
   def,
@@ -34,8 +34,7 @@ export function initProps(
   }
   if (isStateful) {
     // stateful
-    instance.props = props;
-    // instance.props = shallowReactive(props) // props为响应式 但是内层变化 无法发页面更新
+    instance.props = shallowReactive(props); // props为响应式 但是内层变化 无法发页面更新
   }
   // 函数式 暂不考虑 用的不多
   else {
@@ -105,6 +104,27 @@ function setFullProps(instance, rawProps, props, attrs) {
         !hasOwn(castValues, key) // 声明了属性但是没有传
       );
     }
+  }
+  return hasAttrsChanged;
+}
+
+export function updateProps(
+  instance,
+  rawProps,
+  rawPrevProps,
+  optimized: boolean
+) {
+  const {
+    props,
+    attrs,
+    vnode: { patchFlag },
+  } = instance;
+  const rawCurrentProps = toRaw(props);
+  const [options] = instance.propsOptions;
+  let hasAttrsChanged = false;
+  // full props update.
+  if (setFullProps(instance, rawProps, props, attrs)) {
+    hasAttrsChanged = true;
   }
 }
 

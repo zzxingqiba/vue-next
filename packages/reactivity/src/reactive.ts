@@ -1,7 +1,10 @@
 import type { UnwrapRefSimple, Ref } from "./ref";
 import { isObject, toRawType, def } from "@vue/shared";
-import { mutableHandlers } from "./baseHandlers";
-import { mutableCollectionHandlers } from "./collectionHandlers";
+import { mutableHandlers, shallowReactiveHandlers } from "./baseHandlers";
+import {
+  mutableCollectionHandlers,
+  shallowCollectionHandlers,
+} from "./collectionHandlers";
 
 export const enum ReactiveFlags {
   SKIP = "__v_skip",
@@ -52,6 +55,26 @@ function getTargetType(value: Target) {
 }
 
 export type UnwrapNestedRefs<T> = T extends Ref ? T : UnwrapRefSimple<T>;
+
+export declare const ShallowReactiveMarker: unique symbol;
+
+export type ShallowReactive<T> = T & { [ShallowReactiveMarker]?: true };
+/**
+ * Return a shallowly-reactive copy of the original object, where only the root
+ * level properties are reactive. It also does not auto-unwrap refs (even at the
+ * root level).
+ */
+export function shallowReactive<T extends object>(
+  target: T
+): ShallowReactive<T> {
+  return createReactiveObject(
+    target,
+    false,
+    shallowReactiveHandlers,
+    shallowCollectionHandlers,
+    shallowReactiveMap
+  );
+}
 
 export function reactive<T extends object>(target: T): UnwrapNestedRefs<T>;
 export function reactive(target: Object) {

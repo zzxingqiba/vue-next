@@ -14,6 +14,7 @@ export {
   isProxy,
   toRaw,
   markRaw,
+  shallowReactive,
   ReactiveFlags,
   UnwrapNestedRefs
 } from './reactive'
