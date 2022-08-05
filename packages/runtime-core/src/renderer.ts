@@ -122,7 +122,9 @@ function baseCreateRenderer(options: any, createHydrationFns?: any) {
         // 最后会去创建一个effect 他的调度器就是执行自身的run方法, 会去执行他的render函数 生成vnode节点 然后进行patch操作 进行正常节点的挂载流程
         // 组件更新流程: 节点更新代表了子组件props发生了改变 也就是父组件状态发生了改变 所以会触发父组件的render函数重新执行
         // 生成新的vonde节点 去和旧节点进行比较 (props在初次的时候被处理成了shallowReative  或许是为了可以watch porps的变化)
-        // 当比较到子组件时会触发子组件的更新 去执行子组件的调度器 此时会更新子组件的props 之后触发子组件的render函数 得到新的vonde  然后和旧节点进行patch比较
+        // 当比较到子组件时会执行子组件的调度器函数 
+        // 此时会更新子组件的props(因为当前activeEffect是子组件实例 子组件收集的也是同一个effect 所以当修改props时会不会再触发scheduler执行了 就是纯修改值) 
+        // 之后会执行子组件的render函数 得到新的vonde  然后和旧节点进行patch比较
         // 完成更新
         else if (shapeFlag & ShapeFlags.COMPONENT) {
           processComponent(
