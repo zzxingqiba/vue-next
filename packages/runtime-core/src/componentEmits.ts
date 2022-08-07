@@ -2,7 +2,15 @@
 // e.g. With `emits: { click: null }`, props named `onClick` and `onclick` are
 // both considered matched listeners.
 
-import { hasOwn, hyphenate, isOn } from "@vue/shared";
+import {
+  camelize,
+  EMPTY_OBJ,
+  hasOwn,
+  hyphenate,
+  isOn,
+  toHandlerKey,
+} from "@vue/shared";
+import { callWithAsyncErrorHandling } from "./errorHandling";
 
 // both considered matched listeners.
 export function isEmitListener(options, key: string): boolean {
@@ -16,4 +24,21 @@ export function isEmitListener(options, key: string): boolean {
     hasOwn(options, hyphenate(key)) ||
     hasOwn(options, key)
   );
+}
+
+export function emit(instance, event: string, ...rawArgs: any[]) {
+  if (instance.isUnmounted) return;
+  const props = instance.vnode.props || EMPTY_OBJ;
+
+  let args = rawArgs;
+
+  let handlerName;
+  let handler =
+    props[(handlerName = toHandlerKey(event))] ||
+    // also try camelCase event handler (#2249)
+    props[(handlerName = toHandlerKey(camelize(event)))];
+
+  if (handler) {
+    callWithAsyncErrorHandling(handler, args);
+  }
 }

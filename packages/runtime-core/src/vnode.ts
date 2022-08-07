@@ -46,7 +46,7 @@ export interface VNode {
   slotScopeIds: string[] | null;
   el;
   props;
-  component
+  component;
 }
 
 export function isVNode(value: any): value is VNode {
@@ -170,6 +170,14 @@ export function normalizeChildren(vnode: VNode, children: unknown) {
     children = null;
   } else if (isArray(children)) {
     type = ShapeFlags.ARRAY_CHILDREN;
+  } else if (typeof children === "object") {
+    type = ShapeFlags.SLOTS_CHILDREN;
+    const slotFlag = (children as any)._;
+    if (!slotFlag && !(InternalObjectKey in children!)) {
+      // if slots are not normalized, attach context instance
+      // (compiled / normalized slots already have context)
+      (children as any)._ctx = currentRenderingInstance;
+    }
   } else {
     children = String(children);
     // force teleport children to array so it can be moved around

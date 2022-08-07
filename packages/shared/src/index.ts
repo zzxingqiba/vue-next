@@ -120,6 +120,7 @@ export const capitalize = cacheStringFunction(
   (str: string) => str.charAt(0).toUpperCase() + str.slice(1)
 );
 
+
 const camelizeRE = /-(\w)/g;
 /**
  * @private
@@ -127,3 +128,10 @@ const camelizeRE = /-(\w)/g;
 export const camelize = cacheStringFunction((str: string): string => {
   return str.replace(camelizeRE, (_, c) => (c ? c.toUpperCase() : ""));
 });
+
+/**
+ * @private
+ */
+ export const toHandlerKey = cacheStringFunction((str: string) =>
+ str ? `on${capitalize(str)}` : ``
+)

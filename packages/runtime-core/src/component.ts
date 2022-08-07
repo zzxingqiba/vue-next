@@ -1,10 +1,15 @@
-import { markRaw } from "@vue/reactivity";
-import { EMPTY_OBJ, extend, NOOP, ShapeFlags } from "@vue/shared";
+import { markRaw, proxyRefs } from "@vue/reactivity";
+import { EMPTY_OBJ, extend, isFunction, isObject, NOOP, ShapeFlags } from "@vue/shared";
 import { pauseTracking, resetTracking } from "packages/reactivity/src/effect";
 import { createAppContext } from "./apiCreateApp";
 import { applyOptions } from "./componentOptions";
+import {
+  emit,
+} from './componentEmits'
 import { initProps, normalizePropsOptions } from "./componentProps";
 import { PublicInstanceProxyHandlers } from "./componentPublicInstance";
+import { callWithErrorHandling } from "./errorHandling";
+import { initSlots } from "./componentSlots";
 
 export function isStatefulComponent(instance) {
   return instance.vnode.shapeFlag & ShapeFlags.STATEFUL_COMPONENT;
@@ -14,15 +19,15 @@ export function setupComponent(instance, isSSR = false) {
   const { props, children } = instance.vnode;
   const isStateful = isStatefulComponent(instance);
   initProps(instance, props, isStateful, isSSR);
-  // initSlots(instance, children)
+  initSlots(instance, children)
 
   const setupResult = isStateful
-    ? setupStatefulComponent(instance, isSSR)
+    ? setupStatefulComponent(instance)
     : undefined;
   return setupResult;
 }
 
-function setupStatefulComponent(instance, isSSR: boolean) {
+function setupStatefulComponent(instance) {
   const Component = instance.type;
   // 0. create render proxy property access cache
   instance.accessCache = Object.create(null);
@@ -38,9 +43,57 @@ function setupStatefulComponent(instance, isSSR: boolean) {
   // 传setup暂不考虑
   const { setup } = Component;
   if (setup) {
+    const setupContext = (instance.setupContext =
+      setup.length > 1 ? createSetupContext(instance) : null);
+    setCurrentInstance(instance);
+    pauseTracking();
+    const setupResult = callWithErrorHandling(setup, instance, null, [
+      instance.props,
+      setupContext,
+    ]);
+    resetTracking();
+    unsetCurrentInstance();
+    handleSetupResult(instance, setupResult)
   } else {
-    finishComponentSetup(instance, isSSR);
+    finishComponentSetup(instance);
   }
+}
+
+export function createSetupContext(instance) {
+  const expose = (exposed) => {
+    instance.exposed = exposed || {};
+  };
+  let attrs;
+  return {
+    get attrs() {
+      return attrs || (attrs = createAttrsProxy(instance));
+    },
+    slots: instance.slots,
+    emit: instance.emit,
+    expose,
+  };
+}
+
+function createAttrsProxy(instance) {
+  return new Proxy(instance.attrs, {
+    get(target, key: string) {
+      return target[key];
+    },
+  });
+}
+
+export function handleSetupResult(
+  instance,
+  setupResult: unknown,
+){
+  if (isFunction(setupResult)) {
+    // setup返回函数形式 以返回render为准 不看type中的render
+    instance.render = setupResult
+  } else if (isObject(setupResult)){
+    // 将setup返回的对象去除ref .value的形式直接访问 并挂载到instance实例上
+    instance.setupState = proxyRefs(setupResult)
+  }
+  finishComponentSetup(instance)
 }
 
 let compile;
@@ -56,7 +109,7 @@ export function registerRuntimeCompiler(_compile: any) {
 
 export function finishComponentSetup(
   instance,
-  isSSR: boolean,
+  isSSR = false,
   skipOptions?: boolean
 ) {
   const Component = instance.type;
@@ -196,7 +249,7 @@ export function createComponentInstance(vnode, parent, suspense) {
   };
   instance.ctx = { _: instance };
   instance.root = parent ? parent.root : instance;
-  // instance.emit = emit.bind(null, instance)
+  instance.emit = emit.bind(null, instance)
 
   // apply custom element special handling
   if (vnode.ce) {

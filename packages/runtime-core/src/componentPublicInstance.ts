@@ -47,7 +47,7 @@ export const PublicInstanceProxyHandlers = {
             return props![key];
           // default: just fallthrough
         }
-      } else if (setupState !== EMPTY_OBJ && hasOwn(setupState, key)) {
+      } else if (setupState !== EMPTY_OBJ && hasOwn(setupState, key)) { // 处理setup返回值 优先取这里
         accessCache![key] = AccessTypes.SETUP;
         return setupState[key];
       } else if (data !== EMPTY_OBJ && hasOwn(data, key)) {
