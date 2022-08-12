@@ -17,3 +17,11 @@ export { registerRuntimeCompiler } from "./component";
 export { h } from "./h";
 // VNode types
 export { Fragment, Text, Comment, Static } from "./vnode";
+export {
+  onBeforeMount,
+  onMounted,
+  onBeforeUpdate,
+  onUpdated,
+  onBeforeUnmount,
+  onUnmounted,
+} from './apiLifecycle'

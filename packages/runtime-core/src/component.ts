@@ -11,6 +11,23 @@ import { PublicInstanceProxyHandlers } from "./componentPublicInstance";
 import { callWithErrorHandling } from "./errorHandling";
 import { initSlots } from "./componentSlots";
 
+export const enum LifecycleHooks {
+  BEFORE_CREATE = 'bc',
+  CREATED = 'c',
+  BEFORE_MOUNT = 'bm',
+  MOUNTED = 'm',
+  BEFORE_UPDATE = 'bu',
+  UPDATED = 'u',
+  BEFORE_UNMOUNT = 'bum',
+  UNMOUNTED = 'um',
+  DEACTIVATED = 'da',
+  ACTIVATED = 'a',
+  RENDER_TRIGGERED = 'rtg',
+  RENDER_TRACKED = 'rtc',
+  ERROR_CAPTURED = 'ec',
+  SERVER_PREFETCH = 'sp'
+}
+
 export function isStatefulComponent(instance) {
   return instance.vnode.shapeFlag & ShapeFlags.STATEFUL_COMPONENT;
 }
@@ -151,7 +168,7 @@ export function finishComponentSetup(
   unsetCurrentInstance();
 }
 
-let currentInstance = null;
+export let currentInstance = null;
 export const setCurrentInstance = (instance) => {
   currentInstance = instance;
   instance?.scope?.on?.();

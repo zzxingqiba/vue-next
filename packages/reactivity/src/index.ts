@@ -30,6 +30,8 @@ export {
   effect,
   trigger,
   track,
+  pauseTracking,
+  resetTracking,
   ReactiveEffect,
   ReactiveEffectRunner,
   ReactiveEffectOptions,

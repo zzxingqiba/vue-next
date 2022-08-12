@@ -13,50 +13,22 @@
   <div id="app"></div>
   <script>
     const app = document.getElementById('app')
-    const { h, render, ref, Fragment} = Vue
+    const { render, h, onMounted, getCurrentInstance } = Vue
     const VueComponent = {
-      props:{
-        address: String
-      },
-      emits: ['update'],
-      setup(props, ctx){
-        const age = ref(18)
-        setInterval(()=>{
-          age.value++ 
-        },1000)
+      setup(){
+        onMounted(()=>{
+          const instance = getCurrentInstance()
+          console.log('onMounted',instance)
+        })
         return {
-          address: props.address + 'hh',
-          age
+
         }
-        // return () => h('div', { onClick:()=> ctx.emit('update', 'yes') }, props.address + age.value)
-        // return () => h('div', [
-        //   h('div', ctx.slots.header()),
-        //   h('div', { onClick:()=> ctx.emit('update', 'yes') }, '22'),
-        //   h('div', ctx.slots.main('222')),
-        //   h('div', ctx.slots.footer())
-        // ])
       },
-      // render(){
-      //   return h('div', { onClick:()=> this.$emit('update', 'yes') }, this.address + this.age)
-      // }
       render(){
-        return h('div', [
-          h('div', this.$slots.header()),
-          h('div', { onClick:()=> ctx.emit('update', 'yes') }, '22'),
-          h('div', this.$slots.main(this.age)),
-          h('div', this.$slots.footer())
-        ])
+        return h('span','')
       }
     }
-    // render(h(VueComponent, { address: '地址', onUpdate: value => {alert(value)}},), app)
-    render(h(VueComponent, 
-      { address: '地址', onUpdate: value => {alert(value)}}, 
-      {
-        header: () => h('p', 'header'),
-        main: (val) => h('p', 'main' + val),
-        footer: () => h('p', 'footer'),
-      }
-    ), app)
+    render(h(VueComponent), app)
   </script>
 </body>
 
