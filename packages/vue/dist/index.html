@@ -39,10 +39,10 @@
       // render(){
       //   return h('div', { onClick:()=> this.$emit('update', 'yes') }, this.address + this.age)
       // }
-      render(){
+      render(ctx){
         return h('div', [
           h('div', this.$slots.header()),
-          h('div', { onClick:()=> ctx.emit('update', 'yes') }, '22'),
+          h('div', { onClick:()=> ctx.$emit('update', 'yes') }, '22'),
           h('div', this.$slots.main(this.age)),
           h('div', this.$slots.footer())
         ])
