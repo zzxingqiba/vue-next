@@ -10,6 +10,7 @@ import { initProps, normalizePropsOptions } from "./componentProps";
 import { PublicInstanceProxyHandlers } from "./componentPublicInstance";
 import { callWithErrorHandling } from "./errorHandling";
 import { initSlots } from "./componentSlots";
+import { currentRenderingInstance } from "./componentRenderContext";
 
 export const enum LifecycleHooks {
   BEFORE_CREATE = 'bc',
@@ -169,6 +170,10 @@ export function finishComponentSetup(
 }
 
 export let currentInstance = null;
+
+export const getCurrentInstance = () =>
+  currentInstance || currentRenderingInstance
+
 export const setCurrentInstance = (instance) => {
   currentInstance = instance;
   instance?.scope?.on?.();

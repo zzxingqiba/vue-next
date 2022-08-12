@@ -24,4 +24,8 @@ export {
   onUpdated,
   onBeforeUnmount,
   onUnmounted,
-} from './apiLifecycle'
+} from "./apiLifecycle";
+
+// For getting a hold of the internal instance in setup() - useful for advanced
+// plugins
+export { getCurrentInstance } from "./component";

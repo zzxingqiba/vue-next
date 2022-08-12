@@ -11,6 +11,7 @@ import {
 import {
   EMPTY_ARR,
   EMPTY_OBJ,
+  invokeArrayFns,
   isReservedProp,
   NOOP,
   PatchFlags,
@@ -21,8 +22,15 @@ import { createComponentInstance, setupComponent } from "./component";
 import { getSequence } from "./getSequence";
 import { renderComponentRoot } from "./componentRenderUtils";
 import { ReactiveEffect } from "@vue/reactivity";
-import { invalidateJob, queueJob, SchedulerJob } from "./scheduler";
+import {
+  invalidateJob,
+  queueJob,
+  queuePostFlushCb,
+  SchedulerJob,
+} from "./scheduler";
 import { updateProps } from "./componentProps";
+
+export const queuePostRenderEffect = queuePostFlushCb;
 
 export function createRenderer(options: any) {
   return baseCreateRenderer(options);
@@ -122,8 +130,8 @@ function baseCreateRenderer(options: any, createHydrationFns?: any) {
         // 最后会去创建一个effect 他的调度器就是执行自身的run方法, 会去执行他的render函数 生成vnode节点 然后进行patch操作 进行正常节点的挂载流程
         // 组件更新流程: 节点更新代表了子组件props发生了改变 也就是父组件状态发生了改变 所以会触发父组件的render函数重新执行
         // 生成新的vonde节点 去和旧节点进行比较 (props在初次的时候被处理成了shallowReative  或许是为了可以watch porps的变化)
-        // 当比较到子组件时会执行子组件的调度器函数 
-        // 此时会更新子组件的props(因为当前activeEffect是子组件实例 子组件收集的也是同一个effect 所以当修改props时会不会再触发scheduler执行了 就是纯修改值) 
+        // 当比较到子组件时会执行子组件的调度器函数
+        // 此时会更新子组件的props(因为当前activeEffect是子组件实例 子组件收集的也是同一个effect 所以当修改props时会不会再触发scheduler执行了 就是纯修改值)
         // 之后会执行子组件的render函数 得到新的vonde  然后和旧节点进行patch比较
         // 完成更新
         else if (shapeFlag & ShapeFlags.COMPONENT) {
@@ -813,6 +821,13 @@ function baseCreateRenderer(options: any, createHydrationFns?: any) {
   ) => {
     const componentUpdateFn = () => {
       if (!instance.isMounted) {
+        const { bm, m, parent } = instance;
+        // beforeMount hook
+        // 触发生命周期钩子
+        if (bm) {
+          invokeArrayFns(bm);
+        }
+
         const subTree = (instance.subTree = renderComponentRoot(instance));
         patch(
           null,
@@ -825,6 +840,11 @@ function baseCreateRenderer(options: any, createHydrationFns?: any) {
         );
         initialVNode.el = subTree.el;
         instance.isMounted = true;
+
+        // mounted hook
+        if (m) {
+          queuePostRenderEffect(m); // 第二个参数parentSuspense
+        }
       } else {
         let { next, bu, u, parent, vnode } = instance;
         let originNext = next;
@@ -836,6 +856,12 @@ function baseCreateRenderer(options: any, createHydrationFns?: any) {
         } else {
           next = vnode;
         }
+
+        // beforeUpdate hook
+        if (bu) {
+          invokeArrayFns(bu);
+        }
+
         toggleRecurse(instance, true);
         const nextTree = renderComponentRoot(instance);
         const prevTree = instance.subTree;
@@ -852,6 +878,10 @@ function baseCreateRenderer(options: any, createHydrationFns?: any) {
           isSVG
         );
         next.el = nextTree.el;
+        // updated hook
+        if (u) {
+          queuePostRenderEffect(u);
+        }
       }
     };
     // create reactive effect for rendering

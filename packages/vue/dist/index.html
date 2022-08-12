@@ -16,6 +16,8 @@
     const { render, h, onMounted, getCurrentInstance } = Vue
     const VueComponent = {
       setup(){
+        const instance = getCurrentInstance()
+        console.log('setup',instance)
         onMounted(()=>{
           const instance = getCurrentInstance()
           console.log('onMounted',instance)
