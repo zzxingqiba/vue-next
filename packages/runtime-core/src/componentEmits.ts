@@ -31,7 +31,6 @@ export function emit(instance, event: string, ...rawArgs: any[]) {
   const props = instance.vnode.props || EMPTY_OBJ;
 
   let args = rawArgs;
-
   let handlerName;
   let handler =
     props[(handlerName = toHandlerKey(event))] ||
