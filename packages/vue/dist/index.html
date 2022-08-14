@@ -12,25 +12,10 @@
   <script src="./vue.global.js"></script>
   <div id="app"></div>
   <script>
-    const app = document.getElementById('app')
-    const { render, h, onMounted, getCurrentInstance } = Vue
-    const VueComponent = {
-      setup(){
-        const instance = getCurrentInstance()
-        console.log('setup',instance)
-        onMounted(()=>{
-          const instance = getCurrentInstance()
-          console.log('onMounted',instance)
-        })
-        return {
-
-        }
-      },
-      render(){
-        return h('span','')
-      }
-    }
-    render(h(VueComponent), app)
+    // const app = document.getElementById('app')
+    const { baseCompile } = Vue
+    const ast = baseCompile(`<div :a="1"></div>`)
+    console.log(ast)
   </script>
 </body>
 

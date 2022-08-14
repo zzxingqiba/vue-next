@@ -40,3 +40,8 @@ function compileToFunction(
 
 registerRuntimeCompiler(compileToFunction)
 export * from '@vue/runtime-dom'
+
+
+
+// test
+export * from '@vue/compiler-core'
